@@ -1,6 +1,6 @@
 # Tangram
 
-## Introduction
+## Overview
 
 
 ## System requirements
