@@ -27,7 +27,7 @@ Tangram mapper can be instantiated as a class. Two different classes are used to
 
 A `Mapper` instance is initialized with the following arguments:
 - S (`ndarray`): Single nuclei matrix, shape = (number_cell, number_genes).
-- G (`ndarray`): Spatial transcriptomics matrix, shape = (number_spots, number_genes). Spots can be single cells or they can contain multiple cells.
+- G (`ndarray`): Spatial data matrix, shape = (number_spots, number_genes). Spots can be single cells or they can contain multiple cells.
 - d (`ndarray`): Spatial density of cells, shape = (number_spots,). This array should satisfy the constraints d.sum() == 1.
 - Optional hyperparameters to weight the different terms in the loss function and to enable the weight regularizer.
 - The device (`str` or `torch.device`).
