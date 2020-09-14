@@ -1,19 +1,20 @@
 # Tangram
 
-Tangram is a Python package written in [PyTorch](https://pytorch.org/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data.  The two datasets should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes (usually from twenty to a thousand). Tangram aligns the single-cell data in space by fitting gene expression on those genes. 
+Tangram is a Python package, written in [PyTorch](https://pytorch.org/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data.  The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes (usually from twenty to a thousand). Tangram aligns the single-cell data in space by fitting gene expression on those genes. 
 
 We mostly work with transcriptomic data (typically 10Xv3 for scRNAseq data; MERFISH or Visium as spatial data). We used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in adult mouse brain. For more details, check out our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1).
 
 ![Tangram](figures/tangram.png)
 
-The simplest way to run the method is to install the dependencies, listed in `environment.yml`, and run the two notebooks located in the `example` folder. The two notebooks contain a working pipeline for a targeted in-situ dataset (smFISH) and spatial transcriptomics (Visium). These pipeline should work for most of the cases, 
+The simplest way to run the method is to install the dependencies, listed in `environment.yml`, and run the two notebooks located in the `example` folder. The two notebooks contain a working pipeline for a targeted in-situ dataset (smFISH) and spatial transcriptomics (Visium). These pipeline should work for most of the cases, but see next section if you need to adapt Tangram to non-plug-and-play situations.
 
 
-### To run the example notebooks
-- We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. the dependencies listed in `environment.yml`,
+### How to run the example notebooks
+- We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. All dependencies are listed in `environment.yml`,
 - Download the annotated [snRNAseq data](https://console.cloud.google.com/storage/browser/_details/mapping-dataset/visp_sn_tpm_small_0430.h5ad), collected from the primary visual area of healthy adult mouse brains.
 - The smFISH dataset is available in the `example/data` folder.
-- The Visium dataset 
+- The Visium dataset is [available online](https://github.com/almaan/spacetx), courtesy of [Alma Andersson](https://almaan.github.io/).
+- The two notebooks are located in the `example` folder.
 
 ***
 ## Installation guide
@@ -62,3 +63,6 @@ Example Jupyter notebooks are available in the `example` subfolder. Currently, t
 - Visium: constrained mapping, prediction cell type probabilities in space, deconvolution.
 
 The notebooks include detailed instructions and expected outputs. Optimization takes few minutes using a single P100 GPU.
+
+## Contact us
+If you have questions, you can contact Tommaso Biancalani <tbiancal@broadinstitute.org> and Gabriele Scalia <gscalia@broadinstitute.org>
