@@ -9,12 +9,13 @@ We mostly work with transcriptomic data (typically 10Xv3 for scRNAseq data; MERF
 The simplest way to run the method is to install the dependencies, listed in `environment.yml`, and run the two notebooks located in the `example` folder. The two notebooks contain a working pipeline for a targeted in-situ dataset (smFISH) and spatial transcriptomics (Visium). These pipeline should work for most of the cases, but see next section if you need to adapt Tangram to non-plug-and-play situations.
 
 
-### How to run the example notebooks
-- We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. All dependencies are listed in `environment.yml`,
-- Download the annotated [snRNAseq data](https://console.cloud.google.com/storage/browser/_details/mapping-dataset/visp_sn_tpm_small_0430.h5ad), collected from the primary visual area of healthy adult mouse brains.
-- The smFISH dataset is available in the `example/data` folder.
-- The Visium dataset is [available online](https://github.com/almaan/spacetx), courtesy of [Alma Andersson](https://almaan.github.io/).
-- The two notebooks are located in the `example` folder.
+### How to run the tutorial notebooks
+- We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. All dependencies are listed in `environment.yml`.
+- The data used in the tutorial notebooks are found at the [SpaceJam GitHub](https://github.com/spacetx-spacejam/data) (although you would just need the preprocessed versions we linked below).
+- Download the annotated [snRNAseq data](https://console.cloud.google.com/storage/browser/_details/mapping-dataset/visp_sn_tpm_small_0430.h5ad) to the `example/data` folder.
+- The preprocessed smFISH dataset is available in the `example/data` folder.
+- Download the [Visium dataset](https://storage.cloud.google.com/mapping-dataset/Allen-Visium/Allen1_cell_count.h5ad?_ga=2.216942486.-1202346184.1575917811) to the `example/data`.
+- The two tutorial notebooks are located in the `example` folder.
 
 ***
 ## Installation guide
