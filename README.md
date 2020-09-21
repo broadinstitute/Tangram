@@ -12,9 +12,9 @@ The simplest way to run the method is to install the dependencies, listed in `en
 ### How to run the tutorial notebooks
 - We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. All dependencies are listed in `environment.yml`.
 - The data used in the tutorial notebooks are found at the [SpaceJam GitHub](https://github.com/spacetx-spacejam/data) (although you would just need the preprocessed versions we linked below).
-- Download the annotated [snRNAseq data](https://console.cloud.google.com/storage/browser/_details/mapping-dataset/visp_sn_tpm_small_0430.h5ad) to the `example/data` folder.
+- Download the annotated [snRNAseq data](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/visp_sn_tpm_small_0430.h5ad) to the `example/data` folder.
 - The preprocessed smFISH dataset is available in the `example/data` folder.
-- Download the [Visium dataset](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_count.h5ad), and our [segmentation results](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_centroids.pkl), to the `example/data`.
+- Download the [Visium dataset](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_count.h5ad), and our [segmentation results](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_centroids.pkl), to the `example/data` folder.
 - The two tutorial notebooks are located in the `example` folder.
 
 ***
