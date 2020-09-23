@@ -18,7 +18,7 @@ The simplest way to run the method is to install the dependencies, listed in `en
 - The two tutorial notebooks are located in the `example` folder.
 
 ***
-## Installation guide
+## Usage guide
 
 Tangram mapper can be instantiated as a class. Two different classes are used to do mapping without and with constraint (i.e., learned filter), respectively:
 - `mapping.mapping_optimizer.Mapper` 
