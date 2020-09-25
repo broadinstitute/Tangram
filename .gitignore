@@ -1,2 +1,8 @@
+# ignore large datasets
+Allen-Visium_Allen1_cell_centroids.pkl
+Allen-Visium_Allen1_cell_count.h5ad
+visp_sn_tpm_small_0430.h5ad
+
+# ignore nb checkpoints
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
