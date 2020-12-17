@@ -16,7 +16,7 @@ class Mapper:
     Allows instantiating and running the optimizer for Tangram, without filtering.
     Once instantiated, the optimizer is run with the 'train' method, which also returns the mapping result.
     """
-    def __init__(self, S, G, d, lambda_d=1, lambda_g1=1, lambda_g2=1, lambda_r=0, device='cpu'):
+    def __init__(self, S, G, d, lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu'):
         """
         Instantiate the Tangram optimizer (without filtering).
         Args:
@@ -25,10 +25,10 @@ class Mapper:
                 Spots can be single cells or they can contain multiple cells.
             d (ndarray): Spatial density of cells, shape = (number_spots,).
                 This array should satisfy the constraints d.sum() == 1.
-            lambda_d (float): Optional. Hiperparameter for the density term of the optimizer. Default is 1.
-            lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
-            lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
-            lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes
+            lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
+            lambda_d (float): Optional. Strength of density regularizer. Default is 0.
+            lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
+            lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes
                 probabilities of each cell peaked over a narrow portion of space.
                 lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
             device (str or torch.device): Optional. Device is 'cpu'.
