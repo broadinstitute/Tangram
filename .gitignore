@@ -7,3 +7,6 @@ __pycache__
 # ignore nb checkpoints
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+
+# ignore PyCharm files
+.idea

@@ -8,9 +8,11 @@ import scanpy as sc
 import torch
 import logging
 
-import mapping_optimizer as mo
-# import utils as mu
-# import mapping.plot_utils
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.csr import csr_matrix
+
+from . import mapping_optimizer as mo
+
 
 
 def prepare_adatas_cells_space(adata_cells, adata_space, marker_genes=None):
@@ -25,6 +27,8 @@ def prepare_adatas_cells_space(adata_cells, adata_space, marker_genes=None):
     if marker_genes is None:
         # Use all genes
         marker_genes = adata_cells.var.index.values
+    else:
+        marker_genes = list(marker_genes)
 
     # Refine `marker_genes` so that they are shared by both adatas
     mask = adata_cells.var.index.isin(marker_genes)
@@ -36,7 +40,7 @@ def prepare_adatas_cells_space(adata_cells, adata_space, marker_genes=None):
     # Subset adatas on marker genes
     mask = adata_cells.var.index.isin(marker_genes)
     adata_cells = adata_cells[:, mask]
-    mask = adata_cells.var.index.isin(marker_genes)
+    mask = adata_space.var.index.isin(marker_genes)
     adata_space = adata_space[:, mask]
     assert adata_space.n_vars == adata_cells.n_vars
 
@@ -54,10 +58,28 @@ def map_cells_2_space(adata_cells, adata_space, mode='simple',
         Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.
     """
-    # Allocate matrices and select device
-    # TODO check if Xs are sparse
-    S = np.array(adata_cells.X.toarray(), dtype='float32')
-    G = np.array(adata_space.X.toarray(), dtype='float32')
+    
+    logging.info('Allocate tensors for mapping.')
+
+    # AnnData matrix can be sparse or not
+    if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
+        S = np.array(adata_cells.X.toarray(), dtype='float32')
+    elif isinstance(adata_cells.X, np.ndarray):
+        S = np.array(adata_cells.X, dtype='float32')
+    else:
+        X_type = type(adata_cells.X)
+        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
+        raise NotImplementedError
+    
+    if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
+        G = np.array(adata_space.X.toarray(), dtype='float32')
+    elif isinstance(adata_cells.X, np.ndarray):
+        G = np.array(adata_space.X, dtype='float32')
+    else:
+        X_type = type(adata_space.X)
+        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
+        raise NotImplementedError
+
     d = np.zeros(adata_space.n_obs)
     device = torch.device(device)  # for gpu
 
@@ -76,12 +98,14 @@ def map_cells_2_space(adata_cells, adata_space, mode='simple',
         **hyperparameters,
     )
 
+    logging.info('Begin training...')
     # TODO `train` should return the loss function
     mapping_matrix = mapper.train(
         learning_rate=learning_rate,
         num_epochs=num_epochs
     )
 
+    logging.info('Saving results..')
     adata_map = sc.AnnData(X=mapping_matrix,
                            obs=adata_cells.obs.copy(),
                            var=adata_space.obs.copy())

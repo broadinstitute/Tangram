@@ -7,6 +7,7 @@ matrix M is returned.
 At the end, the learned mapping matrix M and the learned filter F are returned.
 """
 import numpy as np
+import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
 
@@ -68,9 +69,14 @@ class Mapper:
         regularizer_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
 
         if verbose:
-            print((density_term / self.lambda_d).tolist(),
-                  (gv_term / self.lambda_g1).tolist(),
-                  (vg_term / self.lambda_g2).tolist(),)
+            main_loss = (gv_term / self.lambda_g1).tolist()
+            kl_reg = (density_term / self.lambda_d).tolist()
+            vg_reg = (vg_term / self.lambda_g2).tolist()
+            msg = 'Main loss: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
+                main_loss, kl_reg, vg_reg
+            )
+            print(msg)
+            
         return density_term - expression_term - regularizer_term
 
     def train(self, num_epochs, learning_rate=0.1, print_each=100):
@@ -84,7 +90,7 @@ class Mapper:
             The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
         """
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
-
+        logging.warning(f'Printing every {print_each} epochs.')
         for t in range(num_epochs):
             if print_each is None or t % print_each != 0:
                 loss = self._loss_fn(verbose=False)
