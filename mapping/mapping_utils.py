@@ -15,7 +15,7 @@ from . import mapping_optimizer as mo
 
 
 
-def prepare_adatas_cells_space(adata_cells, adata_space, marker_genes=None):
+def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
     """
         Return `adata_cells` and `adata_space` ready to be mapped.
         Returned adatas have same genes (chosen from `marker_genes`).
@@ -45,7 +45,7 @@ def prepare_adatas_cells_space(adata_cells, adata_space, marker_genes=None):
     assert adata_space.n_vars == adata_cells.n_vars
 
     # re-order spatial adata to match gene order in single cell adata
-    adata_space = adata_space[:, adata_cells.var.index]
+    adata_space = adata_space[:, adata_cells.var.index.values]
     assert adata_space.var.index.equals(adata_cells.var.index)
 
     return adata_cells, adata_space
@@ -73,7 +73,7 @@ def map_cells_2_space(adata_cells, adata_space, mode='simple',
     
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
         G = np.array(adata_space.X.toarray(), dtype='float32')
-    elif isinstance(adata_cells.X, np.ndarray):
+    elif isinstance(adata_space.X, np.ndarray):
         G = np.array(adata_space.X, dtype='float32')
     else:
         X_type = type(adata_space.X)

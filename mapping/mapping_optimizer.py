@@ -72,7 +72,7 @@ class Mapper:
             main_loss = (gv_term / self.lambda_g1).tolist()
             kl_reg = (density_term / self.lambda_d).tolist()
             vg_reg = (vg_term / self.lambda_g2).tolist()
-            msg = 'Main loss: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
+            msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
                 main_loss, kl_reg, vg_reg
             )
             print(msg)

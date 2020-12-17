@@ -10,3 +10,7 @@ __pycache__
 
 # ignore PyCharm files
 .idea
+
+# ignore AnnDatas
+*.h5ad
+example/data/ 
