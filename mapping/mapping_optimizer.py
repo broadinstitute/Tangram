@@ -90,7 +90,7 @@ class Mapper:
             The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
         """
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
-        logging.warning(f'Printing every {print_each} epochs.')
+        logging.warning(f'Printing scores every {print_each} epochs.')
         for t in range(num_epochs):
             if print_each is None or t % print_each != 0:
                 loss = self._loss_fn(verbose=False)

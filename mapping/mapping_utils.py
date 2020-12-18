@@ -51,7 +51,7 @@ def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
     return adata_cells, adata_space
 
 
-def map_cells_2_space(adata_cells, adata_space, mode='simple',
+def map_cells_to_space(adata_cells, adata_space, mode='simple',
                       device='cuda:0', learning_rate=0.1, num_epochs=1000):
     """
         Map single cell data (`adata_cells`) on spatial data (`adata_space`).
