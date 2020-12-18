@@ -14,7 +14,6 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 
 
-
 def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
     """
         Return `adata_cells` and `adata_space` ready to be mapped.

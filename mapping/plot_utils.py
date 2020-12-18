@@ -3,7 +3,9 @@ This module includes plotting utility functions.
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
 
+from . import utils as ut
 
 def ordered_predictions(xs, ys, preds, reverse=False):
     """
@@ -18,6 +20,46 @@ def ordered_predictions(xs, ys, preds, reverse=False):
     """
     assert len(xs) == len(ys) == len(preds)
     return list(zip(*[(x, y, z) for x, y, z in sorted(zip(xs, ys, preds), key=lambda pair: pair[2], reverse=reverse)]))
+
+
+def plot_cell_annotation(adata_map, annotation='cell_type', 
+                         x='x', y='y', nrows=None, ncols=None,
+                         marker_size=5, cmap='viridis',):
+    """
+        Transfer an annotation for a single cell dataset onto space, and visualize
+        corresponding spatial probability maps.
+        `adata_map`: cell-by-spot-AnnData containing mapping result
+        `annotation`: Must be a column in `adata_map.obs`.
+        `x`: column name for spots x-coordinates (must be in `adata_map.var`)
+        `y`: column name for spots y-coordinates (must be in `adata_map.var`)
+    """
+
+    # TODO ADD CHECKS for x and y
+    
+    df_annotation = ut.project_cell_annotations(adata_map, annotation=annotation)
+
+    if nrows is None or ncols is None:
+        ncols = 1
+        nrows = len(df_annotation.columns)
+
+    fig, axs = plt.subplots(nrows, ncols, 
+                              figsize=(ncols*3, nrows*3), 
+                              sharex=True, sharey=True) 
+
+    axs_f = axs.flatten()
+    
+    if len(df_annotation.columns) > nrows*ncols:
+        logging.warning('Number of panels smaller than annotations. Increase `nrows`/`ncols`.')
+    
+    iterator = zip(df_annotation.columns, range(nrows*ncols))
+    for annotation, index in iterator:
+        xs, ys, preds = ordered_predictions(adata_map.var[x], 
+                                            adata_map.var[y], 
+                                            df_annotation[annotation])
+        axs_f[index].scatter(x=xs, y=ys, c=preds, s=marker_size, cmap=cmap)
+        axs_f[index].axis('off')
+        axs_f[index].set_title(annotation)
+        
 
 
 def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False):

@@ -1,5 +1,5 @@
 """
-This module includes a set of utility functions to prepare and post-process data for Tangram.
+    Utility functions to pre- and post-process data for Tangram.
 """
 import numpy as np
 import pandas as pd
@@ -84,6 +84,21 @@ def one_hot_encoding(l, keep_aggregate=False):
     return df_enriched
 
 
+def project_cell_annotations(adata_map, annotation='cell_type'):
+    """
+    Transfer `annotation` from single cell data onto space.
+    Args:
+        adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
+        annotation (str): Cell annotations matrix with shape (number_cells, number_annotations).
+    Returns:
+        A dataframe with spatial probabilities for each annotation (number_spots, number_annotations)
+    """
+    df = one_hot_encoding(adata_map.obs[annotation])
+    df_ct_prob = adata_map.X.T @ df
+    return df_ct_prob
+
+
+# DEPRECATED
 def transfer_annotations_prob(mapping_matrix, to_transfer):
     """
     Transfer cell annotations onto space through a mapping matrix.
