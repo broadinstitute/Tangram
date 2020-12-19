@@ -68,7 +68,6 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
         
     if suptitle_add is True:
         fig.suptitle(annotation)
-        
 
 def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False):
     """
@@ -125,7 +124,6 @@ def plot_annotation_entropy(adata_map, annotation='cell_type'):
     ax.set_ylim(0, 1)
     sns.boxenplot(x=annotation, y="entropy", data=adata_map.obs, ax=ax);
     plt.xticks(rotation=30);
-
 
 
 # Colors used in the manuscript for deterministic assignment.
