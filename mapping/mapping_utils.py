@@ -111,26 +111,15 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
                            var=adata_space.obs.copy())
 
     # Build cosine similarity for each training gene
-    G_pred = (adata_map.X.T @ S)
+    G_predicted = (adata_map.X.T @ S)
     cos_sims = []
-    for v1, v2 in zip(G.T, G_pred.T):
-        norm_sq= np.linalg.norm(v1) * np.linalg.norm(v2)
+    for v1, v2 in zip(G.T, G_predicted.T):
+        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=['score'])
     df_cs = df_cs.sort_values(by='score', ascending=False)
     adata_map.uns['train_genes_scores'] = df_cs
-    
-#     ans = []
-#     G_pred = (adata_map.X.T @ S)
-#     for ix in range(G.shape[-1]):  # TODO please somebody parallelize this
-#         norm_G_pred = np.sqrt(G_pred[:, ix] @ G_pred[:, ix])
-#         norm_G = np.sqrt(G[:, ix] @ G[:, ix])
-#         ans.append(G_pred[:, ix] @ G[:, ix]) / (norm_G_pred * norm_G)
-#     training_genes = list(np.rehsape(adata_cells.var.index.values, (-1,)))
-#     df_cs = pd.DataFrame(ans, training_genes, columns=['scores'])
-#     df_cs = df_cs.sort_values(by='score', ascending=False)
-#     adata_map.uns['train_genes_scores'] = df_cs
 
     return adata_map
 
