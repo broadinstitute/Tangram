@@ -50,10 +50,11 @@ def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
     return adata_cells, adata_space
 
 
-def map_cells_to_space(adata_cells, adata_space, mode='simple',
+def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
                       device='cuda:0', learning_rate=0.1, num_epochs=1000):
     """
-        Map single cell data (`adata_cells`) on spatial data (`adata_space`).
+        Map single cell data (`adata_cells`) on spatial data (`adata_space`). If `adata_map`
+        is provided, resume from previous mapping.
         Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.
     """
@@ -93,7 +94,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple',
         raise NotImplementedError
 
     mapper = mo.Mapper(
-        S=S, G=G, d=d, device=device,
+        S=S, G=G, d=d, device=device, adata_map=adata_map,
         **hyperparameters,
     )
 
@@ -108,6 +109,28 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple',
     adata_map = sc.AnnData(X=mapping_matrix,
                            obs=adata_cells.obs.copy(),
                            var=adata_space.obs.copy())
+
+    # Build cosine similarity for each training gene
+    G_pred = (adata_map.X.T @ S)
+    cos_sims = []
+    for v1, v2 in zip(G.T, G_pred.T):
+        norm_sq= np.linalg.norm(v1) * np.linalg.norm(v2)
+        cos_sims.append((v1 @ v2) / norm_sq)
+    training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
+    df_cs = pd.DataFrame(cos_sims, training_genes, columns=['score'])
+    df_cs = df_cs.sort_values(by='score', ascending=False)
+    adata_map.uns['train_genes_scores'] = df_cs
+    
+#     ans = []
+#     G_pred = (adata_map.X.T @ S)
+#     for ix in range(G.shape[-1]):  # TODO please somebody parallelize this
+#         norm_G_pred = np.sqrt(G_pred[:, ix] @ G_pred[:, ix])
+#         norm_G = np.sqrt(G[:, ix] @ G[:, ix])
+#         ans.append(G_pred[:, ix] @ G[:, ix]) / (norm_G_pred * norm_G)
+#     training_genes = list(np.rehsape(adata_cells.var.index.values, (-1,)))
+#     df_cs = pd.DataFrame(ans, training_genes, columns=['scores'])
+#     df_cs = df_cs.sort_values(by='score', ascending=False)
+#     adata_map.uns['train_genes_scores'] = df_cs
 
     return adata_map
 

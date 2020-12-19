@@ -17,7 +17,8 @@ class Mapper:
     Allows instantiating and running the optimizer for Tangram, without filtering.
     Once instantiated, the optimizer is run with the 'train' method, which also returns the mapping result.
     """
-    def __init__(self, S, G, d, lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu'):
+    def __init__(self, S, G, d, 
+                 lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu', adata_map=None):
         """
         Instantiate the Tangram optimizer (without filtering).
         Args:
@@ -33,6 +34,7 @@ class Mapper:
                 probabilities of each cell peaked over a narrow portion of space.
                 lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
             device (str or torch.device): Optional. Device is 'cpu'.
+            adata_map (scanpy.AnnData): Optional. Mapping initial condition (for resuming previous mappings)
         """
         self.S = torch.tensor(S, device=device, dtype=torch.float32)
         self.G = torch.tensor(G, device=device, dtype=torch.float32)
@@ -43,8 +45,13 @@ class Mapper:
         self.lambda_g2 = lambda_g2
         self.lambda_r = lambda_r
         self._density_criterion = torch.nn.KLDivLoss(reduction='sum')
-
-        self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
+        
+        if adata_map is None:
+            self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
+        else:
+            raise NotImplemented
+            self.M = adata_map.X  # doesn't work. maybe apply inverse softmax
+            
         self.M = torch.tensor(self.M, device=device, requires_grad=True, dtype=torch.float32)
 
     def _loss_fn(self, verbose=True):

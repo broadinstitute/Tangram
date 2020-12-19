@@ -4,8 +4,11 @@ This module includes plotting utility functions.
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import seaborn as sns
+from scipy.stats import entropy
 
 from . import utils as ut
+
 
 def ordered_predictions(xs, ys, preds, reverse=False):
     """
@@ -24,7 +27,7 @@ def ordered_predictions(xs, ys, preds, reverse=False):
 
 def plot_cell_annotation(adata_map, annotation='cell_type', 
                          x='x', y='y', nrows=None, ncols=None,
-                         marker_size=5, cmap='viridis',):
+                         marker_size=5, cmap='viridis', suptitle_add=False):
     """
         Transfer an annotation for a single cell dataset onto space, and visualize
         corresponding spatial probability maps.
@@ -52,13 +55,16 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
         logging.warning('Number of panels smaller than annotations. Increase `nrows`/`ncols`.')
     
     iterator = zip(df_annotation.columns, range(nrows*ncols))
-    for annotation, index in iterator:
+    for ann, index in iterator:
         xs, ys, preds = ordered_predictions(adata_map.var[x], 
                                             adata_map.var[y], 
-                                            df_annotation[annotation])
+                                            df_annotation[ann])
         axs_f[index].scatter(x=xs, y=ys, c=preds, s=marker_size, cmap=cmap)
         axs_f[index].axis('off')
-        axs_f[index].set_title(annotation)
+        axs_f[index].set_title(ann)
+        
+    if suptitle_add is True:
+        fig.suptitle(annotation)
         
 
 
@@ -76,6 +82,18 @@ def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False):
     if log:
         vs = np.log(1+np.asarray(vs))
     plt.scatter(xs, ys, c=vs, cmap='viridis', s=s)
+
+
+def plot_annotation_entropy(adata_map, annotation='cell_type'):
+    """
+        
+    """
+    qk = np.ones(shape=(adata_map.n_obs, adata_map.n_vars))
+    adata_map.obs['entropy'] = entropy(adata_map.X, base=adata_map.X.shape[1], axis=1)
+    fig, ax = plt.subplots(1, 1, figsize=(10, 3))
+    sns.boxenplot(x=annotation, y="entropy", data=adata_map.obs, ax=ax);
+    plt.xticks(rotation=30);
+
 
 
 # Colors used in the manuscript for deterministic assignment.
