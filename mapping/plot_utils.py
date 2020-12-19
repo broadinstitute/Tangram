@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import logging
 import seaborn as sns
 from scipy.stats import entropy
+import scanpy as sc
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.csr import csr_matrix
 
 from . import utils as ut
 
@@ -67,7 +70,35 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
         fig.suptitle(annotation)
         
 
+def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False):
+    """
 
+    """
+    # TODO: not very elegant and slow as hell
+    if isinstance(adata_measured.X, csc_matrix) or isinstance(adata_measured.X, csr_matrix):
+        adata_measured.X = adata_measured.X.toarray()
+    
+    fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes)*3))
+    for ix, gene in enumerate(genes):
+        xs, ys, vs = ordered_predictions(adata_measured.obs[x], 
+                                         adata_measured.obs[y], 
+                                         np.array(adata_measured[:, gene].X).flatten())
+        if log:
+            vs = np.log(1+np.asarray(vs))
+        axs[ix, 0].scatter(xs, ys, c=vs, cmap='inferno', s=s)
+        axs[ix, 0].set_title(gene + ' (measured)')
+        axs[ix, 0].axis('off')
+        
+        xs, ys, vs = ordered_predictions(adata_predicted.obs[x], 
+                                         adata_predicted.obs[y], 
+                                         np.array(adata_predicted[:, gene].X).flatten())
+        if log:
+            vs = np.log(1+np.asarray(vs))
+        axs[ix, 1].scatter(xs, ys, c=vs, cmap='inferno', s=s)
+        axs[ix, 1].set_title(gene + ' (predicted)')
+        axs[ix, 1].axis('off')
+    
+    
 def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False):
     """
     Utility function to quickly plot a gene in a AnnData structure ordered by intensity of the gene signal.
@@ -91,6 +122,7 @@ def plot_annotation_entropy(adata_map, annotation='cell_type'):
     qk = np.ones(shape=(adata_map.n_obs, adata_map.n_vars))
     adata_map.obs['entropy'] = entropy(adata_map.X, base=adata_map.X.shape[1], axis=1)
     fig, ax = plt.subplots(1, 1, figsize=(10, 3))
+    ax.set_ylim(0, 1)
     sns.boxenplot(x=annotation, y="entropy", data=adata_map.obs, ax=ax);
     plt.xticks(rotation=30);
 

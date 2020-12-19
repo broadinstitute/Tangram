@@ -6,6 +6,7 @@ import pandas as pd
 from collections import defaultdict
 import gzip
 import pickle
+import scanpy as sc
 
 
 def read_pickle(filename):
@@ -96,6 +97,21 @@ def project_cell_annotations(adata_map, annotation='cell_type'):
     df = one_hot_encoding(adata_map.obs[annotation])
     df_ct_prob = adata_map.X.T @ df
     return df_ct_prob
+
+
+def project_genes(adata_map, adata_sc):
+    """
+        Transfer gene expression from the single cell onto space.
+        Returns a spot-by-gene AnnData containing spatial gene 
+        expression from the single cell data.
+    """
+    if adata_map.obs.index.equals(adata_sc.obs.index) is False:
+        raise ValueError('The two AnnDatas need to have same `obs` index.')
+    X_space = adata_map.X.T @ adata_sc.X.toarray()
+    adata_ge = sc.AnnData(X=X_space, obs=adata_map.var, var=adata_sc.var)
+    training_genes = adata_map.uns['train_genes_scores'].index.values
+    adata_ge.var['is_training'] = adata_ge.var.index.isin(training_genes)
+    return adata_ge
 
 
 # DEPRECATED

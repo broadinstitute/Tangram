@@ -14,7 +14,7 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 
 
-def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
+def pp_adatas_cell_space(adata_cells, adata_space, training_genes=None):
     """
         Return `adata_cells` and `adata_space` ready to be mapped.
         Returned adatas have same genes (chosen from `marker_genes`).
@@ -23,23 +23,23 @@ def prepare_adatas_cell_space(adata_cells, adata_space, marker_genes=None):
         scRNA-seq data needs to be in library-size corrected raw counts.
     """
 
-    if marker_genes is None:
+    if training_genes is None:
         # Use all genes
-        marker_genes = adata_cells.var.index.values
+        training_genes = adata_cells.var.index.values
     else:
-        marker_genes = list(marker_genes)
+        training_genes = list(training_genes)
 
     # Refine `marker_genes` so that they are shared by both adatas
-    mask = adata_cells.var.index.isin(marker_genes)
-    marker_genes = adata_cells.var[mask].index.values
-    mask = adata_space.var.index.isin(marker_genes)
-    marker_genes = adata_space.var[mask].index.values
-    logging.info(f'{len(marker_genes)} marker genes shared by AnnDatas.')
+    mask = adata_cells.var.index.isin(training_genes)
+    training_genes = adata_cells.var[mask].index.values
+    mask = adata_space.var.index.isin(training_genes)
+    training_genes = adata_space.var[mask].index.values
+    logging.info(f'{len(training_genes)} marker genes shared by AnnDatas.')
 
     # Subset adatas on marker genes
-    mask = adata_cells.var.index.isin(marker_genes)
+    mask = adata_cells.var.index.isin(training_genes)
     adata_cells = adata_cells[:, mask]
-    mask = adata_space.var.index.isin(marker_genes)
+    mask = adata_space.var.index.isin(training_genes)
     adata_space = adata_space[:, mask]
     assert adata_space.n_vars == adata_cells.n_vars
 
