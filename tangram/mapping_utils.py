@@ -19,7 +19,6 @@ def pp_adatas(adata_1, adata_2, genes=None):
     Pre-process AnnDatas so that they can be mapped. Specifically:
     - Subset the AnnDatas to `genes` (non-shared genes are removed).
     - Re-order genes in `adata_2` so that they are consistent with those in `adata_1`.
-    - Ensures `X` is in `numpy.ndarray` format.
     :param adata_1:
     :param adata_2:
     :param genes:
@@ -50,10 +49,10 @@ def pp_adatas(adata_1, adata_2, genes=None):
     adata_2 = adata_2[:, adata_1.var.index.values]
     assert adata_2.var.index.equals(adata_1.var.index)
 
-    # cast expression matrices to numpy
-    for adata in [adata_1, adata_2]:
-        if ~isinstance(adata.X, np.ndarray):
-            adata.X = adata.X.toarray()
+#     # cast expression matrices to numpy
+#     for adata in [adata_1, adata_2]:
+#         if not isinstance(adata.X, np.ndarray):
+#             adata.X = adata.X.toarray()
     return adata_1, adata_2
 
 

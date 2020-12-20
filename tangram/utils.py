@@ -27,6 +27,17 @@ def read_pickle(filename):
             return loaded_object
 
 
+def annotate_gene_sparsity(adata):
+    """
+    
+    """
+    mask = adata.X != 0
+    gene_sparsity = np.sum(mask, axis=0) / adata.n_obs
+    gene_sparsity = np.asarray(gene_sparsity)
+    gene_sparsity = 1 - np.reshape(gene_sparsity, (-1, ))
+    adata.var['sparsity'] = gene_sparsity
+    
+    
 def get_matched_genes(prior_genes_names, sn_genes_names, excluded_genes=None):
     """
     Given the list of genes in the spatial data and the list of genes in the single nuclei, identifies the subset of

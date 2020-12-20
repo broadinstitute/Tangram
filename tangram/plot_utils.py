@@ -11,8 +11,28 @@ from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
 
 from . import utils as ut
+from . import mapping_utils as mu
 
+    
+def plot_gene_sparsity(adata_1, adata_2, xlabel='adata_1', ylabel='adata_2', s=1, genes=None):
+    """
+        Compare sparsity of all genes between `adata_1` and `adata_2`.
+    """
+    logging.info('Pre-processing AnnDatas...')
+    adata_1, adata_2 = mu.pp_adatas(adata_1, adata_2, genes=genes)
+    logging.info('Annotating sparsity...')
+    ut.annotate_gene_sparsity(adata_1)
+    ut.annotate_gene_sparsity(adata_2)
+    xs = adata_1.var['sparsity'].values
+    ys = adata_2.var['sparsity'].values
+    fig, ax = plt.subplots(1, 1)
+    ax.set_aspect(1)
+    ax.set_xlabel('sparsity (' + xlabel + ')')
+    ax.set_ylabel('sparsity (' + ylabel + ')')
+    ax.set_title(f'Gene sparsity ({len(xs)} genes)')
+    ax.scatter(xs, ys, s=s, marker='x')
 
+    
 def ordered_predictions(xs, ys, preds, reverse=False):
     """
     Utility function that orders 2d points based on values associated to each point.
