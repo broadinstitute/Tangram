@@ -14,46 +14,53 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 
 
-def pp_adatas_cell_space(adata_cells, adata_space, training_genes=None):
+def pp_adatas(adata_1, adata_2, genes=None):
     """
-        Return `adata_cells` and `adata_space` ready to be mapped.
-        Returned adatas have same genes (chosen from `marker_genes`).
-
-        Spatial data needs to be already in ROI
-        scRNA-seq data needs to be in library-size corrected raw counts.
+    Pre-process AnnDatas so that they can be mapped. Specifically:
+    - Subset the AnnDatas to `genes` (non-shared genes are removed).
+    - Re-order genes in `adata_2` so that they are consistent with those in `adata_1`.
+    - Ensures `X` is in `numpy.ndarray` format.
+    :param adata_1:
+    :param adata_2:
+    :param genes:
+    List of genes to use. If `None`, all genes are used.
+    :return:
     """
-
-    if training_genes is None:
+    if genes is None:
         # Use all genes
-        training_genes = adata_cells.var.index.values
+        genes = adata_1.var.index.values
     else:
-        training_genes = list(training_genes)
+        genes = list(genes)
 
     # Refine `marker_genes` so that they are shared by both adatas
-    mask = adata_cells.var.index.isin(training_genes)
-    training_genes = adata_cells.var[mask].index.values
-    mask = adata_space.var.index.isin(training_genes)
-    training_genes = adata_space.var[mask].index.values
-    logging.info(f'{len(training_genes)} marker genes shared by AnnDatas.')
+    mask = adata_1.var.index.isin(genes)
+    genes = adata_1.var[mask].index.values
+    mask = adata_2.var.index.isin(genes)
+    genes = adata_2.var[mask].index.values
+    logging.info(f'{len(genes)} marker genes shared by AnnDatas.')
 
     # Subset adatas on marker genes
-    mask = adata_cells.var.index.isin(training_genes)
-    adata_cells = adata_cells[:, mask]
-    mask = adata_space.var.index.isin(training_genes)
-    adata_space = adata_space[:, mask]
-    assert adata_space.n_vars == adata_cells.n_vars
+    mask = adata_1.var.index.isin(genes)
+    adata_1 = adata_1[:, mask]
+    mask = adata_2.var.index.isin(genes)
+    adata_2 = adata_2[:, mask]
+    assert adata_2.n_vars == adata_1.n_vars
 
     # re-order spatial adata to match gene order in single cell adata
-    adata_space = adata_space[:, adata_cells.var.index.values]
-    assert adata_space.var.index.equals(adata_cells.var.index)
+    adata_2 = adata_2[:, adata_1.var.index.values]
+    assert adata_2.var.index.equals(adata_1.var.index)
 
-    return adata_cells, adata_space
+    # cast expression matrices to numpy
+    for adata in [adata_1, adata_2]:
+        if ~isinstance(adata.X, np.ndarray):
+            adata.X = adata.X.toarray()
+    return adata_1, adata_2
 
 
 def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
                       device='cuda:0', learning_rate=0.1, num_epochs=1000):
     """
-        Map single cell data (`adata_cells`) on spatial data (`adata_space`). If `adata_map`
+        Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
         Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.

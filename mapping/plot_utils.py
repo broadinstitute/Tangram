@@ -69,6 +69,7 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
     if suptitle_add is True:
         fig.suptitle(annotation)
 
+
 def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False):
     """
 
