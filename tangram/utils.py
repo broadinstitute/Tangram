@@ -8,6 +8,8 @@ import gzip
 import pickle
 import scanpy as sc
 
+from . import mapping_utils as mu
+
 
 def read_pickle(filename):
     """
@@ -120,9 +122,46 @@ def project_genes(adata_map, adata_sc):
         raise ValueError('The two AnnDatas need to have same `obs` index.')
     X_space = adata_map.X.T @ adata_sc.X.toarray()
     adata_ge = sc.AnnData(X=X_space, obs=adata_map.var, var=adata_sc.var)
-    training_genes = adata_map.uns['train_genes_scores'].index.values
+    training_genes = adata_map.uns['train_genes_df'].index.values
     adata_ge.var['is_training'] = adata_ge.var.index.isin(training_genes)
     return adata_ge
+
+
+def compare_spatial_geneexp(adata_space_1, adata_space_2):
+    """
+         Compare gene expression in the two spatial AnnDatas. 
+         Used to compared mapped single cell data to original spatial data.
+         Returns a DataFrame with similarity scores between genes.
+    """
+    
+    adata_space_1, adata_space_2 = mu.pp_adatas(adata_space_1, adata_space_2)
+    annotate_gene_sparsity(adata_space_1)
+    annotate_gene_sparsity(adata_space_2)
+
+    # Annotate cosine similarity of each training gene
+    cos_sims = []
+
+    if hasattr(adata_space_1.X, 'toarray'):
+        X_1 = adata_space_1.X.toarray()
+    else:
+        X_1 = adata_space_1.X
+    if hasattr(adata_space_2.X, 'toarray'):
+        X_2 = adata_space_2.X.toarray()
+    else:
+        X_2 = adata_space_2.X
+
+    for v1, v2 in zip(X_1.T, X_2.T):
+        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
+        cos_sims.append((v1 @ v2) / norm_sq)
+    genes = list(np.reshape(adata_space_1.var.index.values, (-1,)))
+    df_g = pd.DataFrame(cos_sims, genes, columns=['score'])
+    for adata in [adata_space_1, adata_space_2]:
+        if 'is_training' in adata.var.keys():
+            df_g['is_training'] = adata.var.is_training
+    df_g['sparsity_1'] = adata_space_1.var.sparsity
+    df_g['sparsity_2'] = adata_space_2.var.sparsity
+    df_g = df_g.sort_values(by='score', ascending=False)
+    return df_g
 
 
 # DEPRECATED

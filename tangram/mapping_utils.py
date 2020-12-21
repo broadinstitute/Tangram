@@ -12,6 +12,7 @@ from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
 
 from . import mapping_optimizer as mo
+from . import utils as ut
 
 
 def pp_adatas(adata_1, adata_2, genes=None):
@@ -65,9 +66,12 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
         The `uns` field of the returned AnnData contains the training genes.
     """
     
+    if adata_cells.var.index.equals(adata_space.var.index) is False:
+        logging.error('Incompatible AnnDatas. Run `pp_adatas().')
+        raise ValueError
+    
     logging.info('Allocate tensors for mapping.')
-
-    # AnnData matrix can be sparse or not
+    # Allocate tensors (AnnData matrix can be sparse or not)
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
         S = np.array(adata_cells.X.toarray(), dtype='float32')
     elif isinstance(adata_cells.X, np.ndarray):
@@ -76,7 +80,6 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
         X_type = type(adata_cells.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
-    
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
         G = np.array(adata_space.X.toarray(), dtype='float32')
     elif isinstance(adata_space.X, np.ndarray):
@@ -85,10 +88,12 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
         X_type = type(adata_space.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
-
     d = np.zeros(adata_space.n_obs)
+    
+    # Choose device
     device = torch.device(device)  # for gpu
 
+    # Init hyperparameters
     if mode == 'simple':
         hyperparameters = {
             'lambda_d': 0,  # KL (ie density) term
@@ -99,12 +104,12 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
     else:
         raise NotImplementedError
 
+    # Train Tangram
+    logging.info('Begin training...')
     mapper = mo.Mapper(
         S=S, G=G, d=d, device=device, adata_map=adata_map,
         **hyperparameters,
     )
-
-    logging.info('Begin training...')
     # TODO `train` should return the loss function
     mapping_matrix = mapper.train(
         learning_rate=learning_rate,
@@ -116,17 +121,24 @@ def map_cells_to_space(adata_cells, adata_space, mode='simple', adata_map=None,
                            obs=adata_cells.obs.copy(),
                            var=adata_space.obs.copy())
 
-    # Build cosine similarity for each training gene
+    # Annotate cosine similarity of each training gene
     G_predicted = (adata_map.X.T @ S)
     cos_sims = []
     for v1, v2 in zip(G.T, G_predicted.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
-    df_cs = pd.DataFrame(cos_sims, training_genes, columns=['score'])
-    df_cs = df_cs.sort_values(by='score', ascending=False)
-    adata_map.uns['train_genes_scores'] = df_cs
-
+    df_cs = pd.DataFrame(cos_sims, training_genes, columns=['train_score'])
+    df_cs = df_cs.sort_values(by='train_score', ascending=False)
+    adata_map.uns['train_genes_df'] = df_cs
+    
+    # Annotate sparsity of each training genes
+    ut.annotate_gene_sparsity(adata_cells)
+    ut.annotate_gene_sparsity(adata_space)
+    adata_map.uns['train_genes_df']['sparsity_sc'] = adata_cells.var.sparsity
+    adata_map.uns['train_genes_df']['sparsity_sp'] = adata_space.var.sparsity
+    adata_map.uns['train_genes_df']['sparsity_diff'] = adata_space.var.sparsity - adata_cells.var.sparsity
+    
     return adata_map
 
 
