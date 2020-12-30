@@ -11,8 +11,52 @@ from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
 
 from . import utils as ut
+from . import mapping_utils as mu
 
 
+def plot_training_scores(adata_map, bins='auto', alpha=.7):
+    """
+    
+    """
+    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
+    df = adata_map.uns['train_genes_df']
+    axs_f = axs.flatten()
+    
+#     axs_f[0].set_title('Training scores for single genes')
+    sns.histplot(data=df, y='train_score', bins=10, ax=axs_f[0]);
+
+    axs_f[1].set_title('score vs sparsity (single cells)')
+    sns.scatterplot(data=df, y='train_score', x='sparsity_sc', ax=axs_f[1], alpha=alpha)
+#     sns.distplot(data=df, x='train_score', bins=bins, ax=axs_f[0]);
+    
+    axs_f[2].set_title('score vs sparsity (spatial)')
+    sns.scatterplot(data=df, y='train_score', x='sparsity_sp', ax=axs_f[2], alpha=alpha)
+    
+    axs_f[3].set_title('score vs sparsity (sp - sc)')
+    sns.scatterplot(data=df, y='train_score', x='sparsity_diff', ax=axs_f[3], alpha=alpha)
+    
+    plt.tight_layout()
+
+    
+def plot_gene_sparsity(adata_1, adata_2, xlabel='adata_1', ylabel='adata_2', s=1, genes=None):
+    """
+        Compare sparsity of all genes between `adata_1` and `adata_2`.
+    """
+    logging.info('Pre-processing AnnDatas...')
+    adata_1, adata_2 = mu.pp_adatas(adata_1, adata_2, genes=genes)
+    logging.info('Annotating sparsity...')
+    ut.annotate_gene_sparsity(adata_1)
+    ut.annotate_gene_sparsity(adata_2)
+    xs = adata_1.var['sparsity'].values
+    ys = adata_2.var['sparsity'].values
+    fig, ax = plt.subplots(1, 1)
+    ax.set_aspect(1)
+    ax.set_xlabel('sparsity (' + xlabel + ')')
+    ax.set_ylabel('sparsity (' + ylabel + ')')
+    ax.set_title(f'Gene sparsity ({len(xs)} genes)')
+    ax.scatter(xs, ys, s=s, marker='x')
+
+    
 def ordered_predictions(xs, ys, preds, reverse=False):
     """
     Utility function that orders 2d points based on values associated to each point.
@@ -53,7 +97,8 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
                               sharex=True, sharey=True) 
 
     axs_f = axs.flatten()
-    
+    [ax.axis('off') for ax in axs_f]
+
     if len(df_annotation.columns) > nrows*ncols:
         logging.warning('Number of panels smaller than annotations. Increase `nrows`/`ncols`.')
     
@@ -63,7 +108,8 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
                                             adata_map.var[y], 
                                             df_annotation[ann])
         axs_f[index].scatter(x=xs, y=ys, c=preds, s=marker_size, cmap=cmap)
-        axs_f[index].axis('off')
+#         axs_f[index].axis('off')
+        axs_f[index].set_aspect(1)
         axs_f[index].set_title(ann)
         
     if suptitle_add is True:
