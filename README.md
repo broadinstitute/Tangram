@@ -44,17 +44,14 @@ For more details on how to use Tangram check out [our tutorial](example/1_tutori
 ***
 ## How Tangram works under the hood
 Tangram instantiates a `Mapper` object passing the following arguments:
-- $S$: single cell matrix with shape $(n_\text{cell}, n_\text{genes})$. Note that $n_\text{genes}$ is the number of training genes.
-- $G$: spatial data matrix with shape $(n_\text{voxels}, n_\text{genes})$. Voxel can contain multiple cells.
+- _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
+- _G_: spatial data matrix with shape voxels-by-genes. Voxel can contain multiple cells.
 
-Then, Tangram searches for a mapping matrix $M$, with shape $(n_\text{voxels}, n_\text{genes})$, where the element $M_{ij}$ signifies the probability of cell $i$ of being in spot $j$. Tangram computes the matrix $M$ by minimizing the following loss:
+Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, where the element _M\_ij_ signifies the probability of cell _i_ of being in spot _j_. Tangram computes the matrix _M_ by minimizing the following loss:
 
-$$
-    \mathcal L(S, M) = \sum_k^{n_\text{genes}} \cos_{\text{sim}} 
-    \left( \left(M^T S\right)_{*, k}, G_{*, k} \right),
-$$
+<img src="tangram_loss.gif" width="400">
 
-where $\cos_\text{sim}$ is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells, $\left(M^T S\right)$, should be as similar as possibile to the spatial data $G$ under the consine similarity sense.
+where cos_sim is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells, should be as similar as possibile to the spatial data _G_ under the consine similarity sense.
 
 The above accounts for basic Tangram usage. In our manuscript, we modified the loss function in several ways so as to add various kinds of prior knowledge, such as number of cell contained in each voxels.
 
