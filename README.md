@@ -1,69 +1,86 @@
 # Tangram
 
-Tangram is a Python package, written in [PyTorch](https://pytorch.org/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data.  The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes (usually from twenty to a thousand). Tangram aligns the single-cell data in space by fitting gene expression on those genes. 
-
-We mostly work with transcriptomic data (typically 10Xv3 for scRNAseq data; MERFISH or Visium as spatial data). We used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in adult mouse brain. For more details, check out our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1).
-
 ![Tangram](figures/tangram.png)
 
-The simplest way to run the method is to install the dependencies, listed in `environment.yml`, and run the two notebooks located in the `example` folder. The two notebooks contain a working pipeline for a targeted in-situ dataset (smFISH) and spatial transcriptomics (Visium). These pipeline should work for most of the cases, but see next section if you need to adapt Tangram to non-plug-and-play situations.
+Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. 
 
-
-### How to run the tutorial notebooks
-- We tested Tangram on `python 3.8`, `pytorch 1.4` and `scanpy 1.6`. All dependencies are listed in `environment.yml`.
-- The data used in the tutorial notebooks are found at the [SpaceJam GitHub](https://github.com/spacetx-spacejam/data) (although you would just need the preprocessed versions we linked below).
-- Download the annotated [snRNAseq data](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/visp_sn_tpm_small_0430.h5ad) to the `example/data` folder.
-- The preprocessed smFISH dataset is available in the `example/data` folder.
-- Download the [Visium dataset](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_count.h5ad), and our [segmentation results](https://storage.googleapis.com/tommaso-brain-data/tangram_demo/Allen-Visium_Allen1_cell_centroids.pkl), to the `example/data` folder.
-- The two tutorial notebooks are located in the `example` folder.
+Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
-## Usage guide
+## How to run Tangram
 
-Tangram mapper can be instantiated as a class. Two different classes are used to do mapping without and with constraint (i.e., learned filter), respectively:
-- `mapping.mapping_optimizer.Mapper` 
-- `mapping.mapping_optimizer.MapperConstrained`
+To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. Then clone this repo, and import as follows:
 
-### Initialization
+```
+    import sys
+    sys.path.append("/home/tbiancal/git/Tangram") 
+    import tangram as tg
+```
 
-A `Mapper` instance is initialized with the following arguments:
-- S (`ndarray`): Single nuclei matrix, shape = (number_cell, number_genes).
-- G (`ndarray`): Spatial data matrix, shape = (number_spots, number_genes). Spots can be single cells or they can contain multiple cells.
-- d (`ndarray`): Spatial density of cells, shape = (number_spots,). This array should satisfy the constraints d.sum() == 1.
-- Optional hyperparameters to weight the different terms in the loss function and to enable the weight regularizer.
-- The device (`str` or `torch.device`).
+where `/home/tbiancal/git/Tangram` is substituted with your path pointing to the Tangram repo. The load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
 
-In addition to the arguments passed to `Mapper`, a `MapperConstrained` is initialized with:
-- The number of cells to be filtered.
-- Optional hyperparameters to weight the different terms related to the learned filter in the loss function.
+```
+    ad_sp = sc.read_h5ad(path)
+    ad_sc = sc.read_h5ad(path)
+    ad_sc, ad_sp = tg.pp_adatas(ad_sc, ad_sp, genes=None)
+```
 
-Please refer to the documentation in `mapping_optimizer.py` for details about initialization for the two mapping classes.
+The function `pp_adatas` simply ensures that each column of the two datasets points to the same gene (and reorder the matrices if it doesn't). Also, it subsets the datasets to a set of training genes passed by `genes`. If `genes=None`, Tangram maps using all genes shared by the two datasets. Once the datasets are pre-processed we can map:
 
-### Training
+```
+    ad_map = tg.map_cells_to_space(ad_sc, ad_sp)
+```
 
-A `Mapper` or  `MapperConstrained` is optimized with the `train` method. The method takes as arguments:
-- num_epochs (`int`): Number of epochs.
-- learning_rate (`float`): Optional. Learning rate for the optimizer. Default is 0.1.
-- print_each (`int`): Optional. Prints the loss each print_each epochs. If None, the loss is never printed. Default is 100.
-And returns the optimized data structures.
+The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j]` gives the probability for cell $i$ to be in voxel $j$. This structure can be used to project gene expression from the single cell data to space, which is achieved via `tg.project_genes`.
 
-For an unconstrained `Mapper`, the `train` method returns the optimized mapping matrix with shape = (number_cells, number_spots). For a `MapperConstrained`, also the optimized filter with shape = (number_cells,) is returned. 
+```
+    ad_ge = tg.project_genes(ad_map, ad_sc)
+```
 
-### Transfer annotations
+The returned `ad_ge` is a voxel-by-gene AnnData, simlar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
 
-Giving the output of the mapping, we can transfer any annotation onto space. 
+For more details on how to use Tangram check out [our tutorial](example/1_tutorial_tangram.ipynb).
 
-For uncontrained mapping, the `mapping.utils.transfer_annotations_prob(mapping_matrix, to_transfer)` function can be used. `mapping_matrix` with shape = (number_cells, number_spots) is the optimized mapping, `to_transfer` with shape = (number_cells, number_annotations) is the annotation matrix. 
+***
+## How Tangram works under the hood
+Tangram instantiates a `Mapper` object passing the following arguments:
+- $S$: single cell matrix with shape $(n_\text{cell}, n_\text{genes})$. Note that $n_\text{genes}$ is the number of training genes.
+- $G$: spatial data matrix with shape $(n_\text{voxels}, n_\text{genes})$. Voxel can contain multiple cells.
 
-For contrained mapping, the `mapping.utils.transfer_annotations_prob_filter(mapping_matrix, filter, to_transfer)` function can be used. In this case, the learned filter with shape = (number_cells,) is also passed. 
+Then, Tangram searches for a mapping matrix $M$, with shape $(n_\text{voxels}, n_\text{genes})$, where the element $M_{ij}$ signifies the probability of cell $i$ of being in spot $j$. Tangram computes the matrix $M$ by minimizing the following loss:
 
-## Examples
+$$
+    \mathcal L(S, M) = \sum_k^{n_\text{genes}} \cos_{\text{sim}} 
+    \left( \left(M^T S\right)_{*, k}, G_{*, k} \right),
+$$
 
-Example Jupyter notebooks are available in the `example` subfolder. Currently, two examples are available:
-- smFISH: contrained mapping, prediction cell type probabilities in space, deterministic assigmment of cell types.
-- Visium: constrained mapping, prediction cell type probabilities in space, deconvolution.
+where $\cos_\text{sim}$ is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells, $\left(M^T S\right)$, should be as similar as possibile to the spatial data $G$ under the consine similarity sense.
 
-The notebooks include detailed instructions and expected outputs. Optimization takes few minutes using a single P100 GPU.
+The above accounts for basic Tangram usage. In our manuscript, we modified the loss function in several ways so as to add various kinds of prior knowledge, such as number of cell contained in each voxels.
 
-## Contact us
-If you have questions, you can contact Tommaso Biancalani <tbiancal@broadinstitute.org> and Gabriele Scalia <gscalia@broadinstitute.org>
+***
+## Frequentely Asked Questions
+
+#### Do I need a GPU for running Tangram?
+A GPU is not required but is recommended. We run most of our mappings on a single P100 which maps ~50k cells in a few minutes. 
+
+#### How do I choose a list of training genes?
+A good way to start is to use the top 1k unique marker genes, stratified across cell types, as training genes. Alternatively, you can map using the whole transcriptome. Ideally, training genes should contain high quality signal: if most training genes are rich in dropouts or obtained with bad RNA probes your mapping will not be accurate.
+
+#### Do I need cell segmentation for mapping on Visium data?
+You do not need to segment cells in your histology for mapping on spatial transcriptomics data (including Visium and Slide-seq). You need, however, cell segmentation if you wish to deconvolve the data (_ie_ deterministically assign a single cell profile to each cell within a spatial voxel).
+
+#### I run out of memory when I map: what should I do?
+Reduce your spatial data in various parts and map each single part. If that is not sufficient, you will need to downsample your single cell data as well.
+
+***
+## How to cite Tangram
+Tangram has been released in the following publication
+
+Biancalani* T., Scalia* G. et al. - _Deep learning and alignment of spatially-resolved whole transcriptomes of single cells in the mouse brain with Tangram_ [biorXiv 10.1101/2020.08.29.272831](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v3) (2020)
+
+If you have questions, please contact us:
+- Tommaso Biancalani - <tbiancal@broadinstitute.org>  
+- Gabriele Scalia - <gscalia@broadinstitute.org>
+
+
