@@ -49,7 +49,7 @@ Tangram instantiates a `Mapper` object passing the following arguments:
 
 Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, where the element _M\_ij_ signifies the probability of cell _i_ of being in spot _j_. Tangram computes the matrix _M_ by minimizing the following loss:
 
-<img src="tangram_loss.gif" width="400">
+<img src="figures/tangram_loss.gif" width="400">
 
 where cos_sim is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells, should be as similar as possibile to the spatial data _G_ under the consine similarity sense.
 
