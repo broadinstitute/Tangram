@@ -4,7 +4,7 @@
 
 Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. 
 
-Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
+Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in the adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
 ## How to run Tangram
@@ -37,7 +37,7 @@ The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j
     ad_ge = tg.project_genes(ad_map, ad_sc)
 ```
 
-The returned `ad_ge` is a voxel-by-gene AnnData, simlar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
+The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
 
 For more details on how to use Tangram check out [our tutorial](example/1_tutorial_tangram.ipynb).
 
@@ -51,18 +51,18 @@ Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, whe
 
 <img src="figures/tangram_loss.gif" width="400">
 
-where cos_sim is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells, should be as similar as possibile to the spatial data _G_ under the consine similarity sense.
+where cos_sim is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells should be as similar as possible to the spatial data _G_, under the cosine similarity sense.
 
 The above accounts for basic Tangram usage. In our manuscript, we modified the loss function in several ways so as to add various kinds of prior knowledge, such as number of cell contained in each voxels.
 
 ***
-## Frequentely Asked Questions
+## Frequently Asked Questions
 
 #### Do I need a GPU for running Tangram?
 A GPU is not required but is recommended. We run most of our mappings on a single P100 which maps ~50k cells in a few minutes. 
 
 #### How do I choose a list of training genes?
-A good way to start is to use the top 1k unique marker genes, stratified across cell types, as training genes. Alternatively, you can map using the whole transcriptome. Ideally, training genes should contain high quality signal: if most training genes are rich in dropouts or obtained with bad RNA probes your mapping will not be accurate.
+A good way to start is to use the top 1k unique marker genes, stratified across cell types, as training genes. Alternatively, you can map using the whole transcriptome. Ideally, training genes should contain high quality signals: if most training genes are rich in dropouts or obtained with bad RNA probes your mapping will not be accurate.
 
 #### Do I need cell segmentation for mapping on Visium data?
 You do not need to segment cells in your histology for mapping on spatial transcriptomics data (including Visium and Slide-seq). You need, however, cell segmentation if you wish to deconvolve the data (_ie_ deterministically assign a single cell profile to each cell within a spatial voxel).
