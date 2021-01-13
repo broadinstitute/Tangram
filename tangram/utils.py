@@ -120,7 +120,7 @@ def project_genes(adata_map, adata_sc):
     """
     if adata_map.obs.index.equals(adata_sc.obs.index) is False:
         raise ValueError('The two AnnDatas need to have same `obs` index.')
-    X_space = adata_map.X.T @ adata_sc.X.toarray()
+    X_space = adata_map.X.T @ adata_sc.X
     adata_ge = sc.AnnData(X=X_space, obs=adata_map.var, var=adata_sc.var)
     training_genes = adata_map.uns['train_genes_df'].index.values
     adata_ge.var['is_training'] = adata_ge.var.index.isin(training_genes)
