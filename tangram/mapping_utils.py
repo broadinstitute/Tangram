@@ -26,34 +26,26 @@ def pp_adatas(adata_1, adata_2, genes=None):
     List of genes to use. If `None`, all genes are used.
     :return:
     """
+    adata_1 = adata_1.copy()
+    adata_2 = adata_2.copy()
+    adata_1.var_names_make_unique()
+    adata_2.var_names_make_unique()
+    
     if genes is None:
         # Use all genes
         genes = adata_1.var.index.values
     else:
         genes = list(genes)
-
+    
     # Refine `marker_genes` so that they are shared by both adatas
-    mask = adata_1.var.index.isin(genes)
-    genes = adata_1.var[mask].index.values
-    mask = adata_2.var.index.isin(genes)
-    genes = adata_2.var[mask].index.values
+    genes = list(set(genes) & set(adata_1.var.index) & set(adata_2.var.index))
     logging.info(f'{len(genes)} marker genes shared by AnnDatas.')
 
     # Subset adatas on marker genes
-    mask = adata_1.var.index.isin(genes)
-    adata_1 = adata_1[:, mask]
-    mask = adata_2.var.index.isin(genes)
-    adata_2 = adata_2[:, mask]
-    assert adata_2.n_vars == adata_1.n_vars
+    adata_1 = adata_1[:, genes]
+    adata_2 = adata_2[:, genes]
 
-    # re-order spatial adata to match gene order in single cell adata
-    adata_2 = adata_2[:, adata_1.var.index.values]
     assert adata_2.var.index.equals(adata_1.var.index)
-
-#     # cast expression matrices to numpy
-#     for adata in [adata_1, adata_2]:
-#         if not isinstance(adata.X, np.ndarray):
-#             adata.X = adata.X.toarray()
     return adata_1, adata_2
 
 
