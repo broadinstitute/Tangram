@@ -1,8 +1,8 @@
-<img src="figures/tangram_large.png" width="400">
+<img src="https://raw.githubusercontent.com/broadinstitute/Tangram/master/figures/tangram_large.png" width="400"> 
 
-Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. The best way to familiarize yourself with Tangram is to check out [our tutorial](example/1_tutorial_tangram.ipynb).
+Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. The best way to familiarize yourself with Tangram is to check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/example/1_tutorial_tangram.ipynb). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1SVLUIZR6Da6VUyvX_2RkgVxbPn8f62ge?usp=sharing)
 
-![Tangram_overview](figures/tangram_overview.png)
+![Tangram_overview](https://raw.githubusercontent.com/broadinstitute/Tangram/master/figures/tangram_overview.png)
 Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in the adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
@@ -11,8 +11,7 @@ Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-se
 To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. Then clone this repo, and import as follows:
 
 ```
-    import sys
-    sys.path.append("/home/tbiancal/git/Tangram") 
+    pip install tangram-sc
     import tangram as tg
 ```
 
@@ -38,7 +37,7 @@ The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j
 
 The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
 
-For more details on how to use Tangram check out [our tutorial](example/1_tutorial_tangram.ipynb).
+For more details on how to use Tangram check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/example/1_tutorial_tangram.ipynb). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1SVLUIZR6Da6VUyvX_2RkgVxbPn8f62ge?usp=sharing)
 
 ***
 ## How Tangram works under the hood
@@ -48,7 +47,7 @@ Tangram instantiates a `Mapper` object passing the following arguments:
 
 Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, where the element _M\_ij_ signifies the probability of cell _i_ of being in spot _j_. Tangram computes the matrix _M_ by minimizing the following loss:
 
-<img src="figures/tangram_loss.gif" width="400">
+<img src="https://raw.githubusercontent.com/broadinstitute/Tangram/master/figures/tangram_loss.gif" width="400">
 
 where cos_sim is the cosine similarity. The meaning of the loss function is that gene expression of the mapped single cells should be as similar as possible to the spatial data _G_, under the cosine similarity sense.
 
@@ -79,7 +78,8 @@ If you have questions, please contact the authors of the method:
 - Tommaso Biancalani - <tbiancal@broadinstitute.org>  
 - Gabriele Scalia - <gscalia@broadinstitute.org>
 
+PyPI maintainer:
+- Ziqing Lu - <lu.ziq@northeastern.edu>
+
 The artwork has been curated by:
 - Anna Hupalowska <ahupalow@broadinstitute.org>
-
-
