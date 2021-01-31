@@ -10,7 +10,7 @@ Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-se
 ***
 ## How to run Tangram
 
-To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. Then clone this repo, and import as follows:
+To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. To install and import tangram, please use the following code:
 
 ```
     pip install tangram-sc
