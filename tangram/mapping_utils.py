@@ -79,7 +79,7 @@ def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
     return adata_ret
 
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
-                      device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None, scale=True):
+                      device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -126,24 +126,31 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     # Choose device
     device = torch.device(device)  # for gpu
 
-    # Init hyperparameters
-    if mode == 'cells':
-        hyperparameters = {
-            'lambda_d': 0,  # KL (ie density) term
-            'lambda_g1': 1,  # gene-voxel cos sim
-            'lambda_g2': 0,  # voxel-gene cos sim
-            'lambda_r': 0,  # regularizer: penalize entropy
+    hyperparameters = {
+            'lambda_d': lambda_d,  # KL (ie density) term
+            'lambda_g1': lambda_g1,  # gene-voxel cos sim
+            'lambda_g2': lambda_g2,  # voxel-gene cos sim
+            'lambda_r': lambda_r,  # regularizer: penalize entropy
         }
-    elif mode == 'clusters':
-        hyperparameters = {
-            'lambda_d': 1,  # KL (ie density) term
-            'lambda_g1': 1,  # gene-voxel cos sim
-            'lambda_g2': 0,  # voxel-gene cos sim
-            'lambda_r': 0,  # regularizer: penalize entropy
-            'd_source': np.array(adata_cells.obs['cluster_density']) # match sourge/target densities
-        }
-    else:
-        raise NotImplementedError
+
+    # # Init hyperparameters
+    # if mode == 'cells':
+    #     hyperparameters = {
+    #         'lambda_d': 0,  # KL (ie density) term
+    #         'lambda_g1': 1,  # gene-voxel cos sim
+    #         'lambda_g2': 0,  # voxel-gene cos sim
+    #         'lambda_r': 0,  # regularizer: penalize entropy
+    #     }
+    # elif mode == 'clusters':
+    #     hyperparameters = {
+    #         'lambda_d': 1,  # KL (ie density) term
+    #         'lambda_g1': 1,  # gene-voxel cos sim
+    #         'lambda_g2': 0,  # voxel-gene cos sim
+    #         'lambda_r': 0,  # regularizer: penalize entropy
+    #         'd_source': np.array(adata_cells.obs['cluster_density']) # match sourge/target densities
+    #     }
+    # else:
+    #     raise NotImplementedError
 
     # Train Tangram
     logging.info('Begin training...')
