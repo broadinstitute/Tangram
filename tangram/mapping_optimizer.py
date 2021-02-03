@@ -97,22 +97,23 @@ class Mapper:
             kl_reg = (density_term / self.lambda_d).tolist() if density_term is not None else np.nan
             vg_reg = (vg_term / self.lambda_g2).tolist()
 
-            if kl_reg and vg_reg:
+
+            if not np.isnan(kl_reg) and not np.isnan(vg_reg):
                 msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
                     main_loss, kl_reg, vg_reg
                 )
 
-            elif not kl_reg and not vg_reg:
+            elif np.isnan(kl_reg) and np.isnan(vg_reg):
                 msg = 'Score: {:.3f}'.format(
                     main_loss
                 )
 
-            elif not kl_reg:
+            elif np.isnan(kl_reg):
                 msg = 'Score: {:.3f}, VG reg: {:.3f}'.format(
                     main_loss, vg_reg
                 )
 
-            elif not vg_reg:
+            elif np.isnan(vg_reg):
                 msg = 'Score: {:.3f}, KL reg: {:.3f}'.format(
                     main_loss, kl_reg
                 )

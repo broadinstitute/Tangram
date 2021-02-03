@@ -112,13 +112,16 @@ def project_cell_annotations(adata_map, annotation='cell_type'):
     return df_ct_prob
 
 
-def project_genes(adata_map, adata_sc):
+def project_genes(adata_map, adata_sc, label):
     """
         Transfer gene expression from the single cell onto space.
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
-    if adata_map.obs.index.equals(adata_sc.obs.index) is False:
+    if label:
+        ad_sc = mu.adata_to_cluster_expression(adata_sc, label)
+
+    if adata_map.obs.index.equals(ad_sc.obs.index) is False:
         raise ValueError('The two AnnDatas need to have same `obs` index.')
     if hasattr(adata_sc.X, 'toarray'):
         adata_sc.X = adata_sc.X.toarray()

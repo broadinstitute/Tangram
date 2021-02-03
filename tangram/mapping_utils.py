@@ -78,9 +78,8 @@ def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
 
     return adata_ret
 
-
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
-                      device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None):
+                      device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None, scale=True):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -96,7 +95,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         raise ValueError('An cluster_label must be specified if mode = clusters.')
 
     if mode == 'clusters':
-        adata_cells = adata_to_cluster_expression(adata_cells, cluster_label, scale=True, add_density=True)
+        adata_cells = adata_to_cluster_expression(adata_cells, cluster_label, scale, add_density=True)
 
     logging.info('Allocate tensors for mapping.')
     # Allocate tensors (AnnData matrix can be sparse or not)
