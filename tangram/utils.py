@@ -232,7 +232,7 @@ def cross_val(ad_sc,
         )
 
         # project sp and calculate scores
-        ad_ge = project_genes(adata_map, ad_sc, 'subclass')
+        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label)
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
         test_score = df_g[df_g['is_training'] == False]['score'].mean()
         train_score = df_g[df_g['is_training'] == True]['score'].mean()
