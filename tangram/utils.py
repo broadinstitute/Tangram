@@ -205,11 +205,12 @@ def cross_val(ad_sc,
               device='cpu',
               learning_rate=0.1,
               mode='loo',
-              comet_enable=False
+              experiment=None
               ):
     """ This function executes cross validation
 
     Args:
+        experiment: experiment object in comet-ml for logging training in comet-ml
     """
     test_score_list = []
     train_score_list = []
@@ -241,8 +242,8 @@ def cross_val(ad_sc,
         test_score_list.append(test_score)
         train_score_list.append(train_score)
         print(
-            "cv set: {:.3f}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score))
-        if comet_enable:
+            "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score))
+        if experiment:
             experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
             experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)
 
@@ -255,7 +256,7 @@ def cross_val(ad_sc,
     print('cv test score {:.3f}'.format(avg_test_score))
     print('cv train score {:.3f}'.format(avg_train_score))
 
-    if comet_enable:
+    if experiment:
         experiment.log_metric("avg test score", np.average(avg_test_score))
         experiment.log_metric("avg train score", np.average(avg_train_score))
 
