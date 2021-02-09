@@ -123,9 +123,9 @@ def project_genes(adata_map, adata_sc, cluster_label=None):
         expression from the single cell data.
     """
     if cluster_label:
-        ad_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label)
+        adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label)
 
-    if adata_map.obs.index.equals(ad_sc.obs.index) is False:
+    if adata_map.obs.index.equals(adata_sc.obs.index) is False:
         raise ValueError('The two AnnDatas need to have same `obs` index.')
     if hasattr(adata_sc.X, 'toarray'):
         adata_sc.X = adata_sc.X.toarray()
