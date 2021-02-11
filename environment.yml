@@ -12,3 +12,4 @@ dependencies:
   - pip:
     - scanpy==1.6.0
     - comet_ml
+    - scikit-learn

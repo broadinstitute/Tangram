@@ -177,9 +177,10 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
     """ This function generates cross validation datasets
 
     Args:
-        ad_sc:
-        ad_sp:
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
         mode: string, support 'loo' and 'kfold'
+
     """
     genes_array = np.array(list(set(ad_sc.var.index.values)))
 
@@ -212,7 +213,20 @@ def cross_val(ad_sc,
     """ This function executes cross validation
 
     Args:
-        experiment: experiment object in comet-ml for logging training in comet-ml
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
+        lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
+        lambda_d (float): Optional. Strength of density regularizer. Default is 0.
+        lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
+        lambda_r (float): Optional. Strength of entropy regularizer.
+        cluster_label: string, the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+        scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
+        mode: string, cross validation mode, 'loo' and 'kfold' supported
+        return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
+        experiment: bool, experiment object in comet-ml for logging training in comet-ml
+    Returns:
+        cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
+        (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
     test_genes_list = []
     test_pred_list = []
