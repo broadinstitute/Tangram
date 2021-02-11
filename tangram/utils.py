@@ -206,6 +206,7 @@ def cross_val(ad_sc,
               device='cpu',
               learning_rate=0.1,
               mode='loo',
+              return_gene_pred=False,
               experiment=None
               ):
     """ This function executes cross validation
@@ -268,10 +269,6 @@ def cross_val(ad_sc,
                'avg_test_score': avg_test_score,
                'avg_train_score': avg_train_score}
 
-    test_gene_dict = {'test_gene': test_genes_list,
-                      'pred_sp': test_pred_list,
-                      'test_score': test_score_list}
-
     print('cv test score {:.3f}'.format(avg_test_score))
     print('cv train score {:.3f}'.format(avg_train_score))
 
@@ -279,7 +276,18 @@ def cross_val(ad_sc,
         experiment.log_metric("avg test score", np.average(avg_test_score))
         experiment.log_metric("avg train score", np.average(avg_train_score))
 
-    return cv_dict, test_gene_dict
+    if mode=='loo' and return_gene_pred:
+        df_test_gene_pred = pd.DataFrame(data=np.squeeze(test_genes_list),
+                                         columns=ad_sp.var.index,
+                                         index=np.squeeze(test_genes_list))
+        df_test_gene_pred.insert(0, 'test_score', test_score_list)
+
+        df_test_gene_true = pd.DataFrame(data=ad_sp.X.T,
+                                         columns=ad_sp.obs.index,
+                                         index=ad_sp.var.index)
+        return cv_dict, (df_test_gene_pred, df_test_gene_true)
+
+    return cv_dict
 
 
 # DEPRECATED
