@@ -190,7 +190,7 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
 
     for train_idx, test_idx in cv.split(genes_array):
         train_genes = genes_array[train_idx]
-        test_genes = genes_array[test_idx]
+        test_genes = list(genes_array[test_idx])
         ad_sc_train, ad_sp_train = ad_sc[:, train_genes], ad_sp[:, train_genes]
         yield ad_sc_train, ad_sp_train, test_genes
 
