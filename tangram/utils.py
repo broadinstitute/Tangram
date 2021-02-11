@@ -236,7 +236,7 @@ def cross_val(ad_sc,
         )
 
         # project on space
-        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label)
+        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label, scale=scale)
 
         # retrieve result for test gene (genes X cluster/cell)
         ad_ge_test = ad_ge[:,test_genes].X.T
