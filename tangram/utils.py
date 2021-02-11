@@ -240,7 +240,9 @@ def cross_val(ad_sc,
         ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label, scale=scale)
 
         # retrieve result for test gene (genes X cluster/cell)
-        ad_ge_test = ad_ge[:,test_genes].X.T
+        if mode == 'loo' and return_gene_pred:
+            ad_ge_test = ad_ge[:,test_genes].X.T
+            test_pred_list.append(ad_ge_test)
 
         # output scores
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
@@ -249,7 +251,6 @@ def cross_val(ad_sc,
 
         # output avg score
         test_genes_list.append(test_genes)
-        test_pred_list.append(ad_ge_test)
         test_score_list.append(test_score)
         train_score_list.append(train_score)
         print(
