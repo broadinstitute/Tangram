@@ -220,7 +220,7 @@ def cross_val(ad_sc,
     curr_cv_set = 1
     for ad_sc_train, ad_sp_train, test_genes in cv_data_gen(ad_sc, ad_sp, mode):
         # train
-        adata_map = tg.map_cells_to_space(
+        adata_map = mu.map_cells_to_space(
             adata_cells=ad_sc_train,
             adata_space=ad_sp_train,
             mode='clusters',
