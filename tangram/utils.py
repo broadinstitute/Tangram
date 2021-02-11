@@ -195,12 +195,12 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
 
 def cross_val(ad_sc,
               ad_sp,
-              cluster_label,
-              scale,
-              lambda_d,
-              lambda_g1,
-              lambda_g2,
-              lambda_r,
+              cluster_label=None,
+              scale=True,
+              lambda_d=0,
+              lambda_g1=1,
+              lambda_g2=0,
+              lambda_r=0,
               num_epochs=1000,
               device='cpu',
               learning_rate=0.1,
@@ -212,12 +212,14 @@ def cross_val(ad_sc,
     Args:
         experiment: experiment object in comet-ml for logging training in comet-ml
     """
+    test_genes_list = []
+    test_pred_list = []
     test_score_list = []
     train_score_list = []
     curr_cv_set = 1
-    for ad_sc_train, ad_sp_train in cv_data_gen(ad_sc, ad_sp, mode):
+    for ad_sc_train, ad_sp_train, test_genes in cv_data_gen(ad_sc, ad_sp, mode):
         # train
-        adata_map = mu.map_cells_to_space(
+        adata_map = tg.map_cells_to_space(
             adata_cells=ad_sc_train,
             adata_space=ad_sp_train,
             mode='clusters',
@@ -232,13 +234,20 @@ def cross_val(ad_sc,
             lambda_r=lambda_r
         )
 
-        # project sp and calculate scores
+        # project on space
         ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label)
+
+        # retrieve result for test gene (genes X cluster/cell)
+        ad_ge_test = ad_ge[:,test_genes].X.T
+
+        # output scores
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
         test_score = df_g[df_g['is_training'] == False]['score'].mean()
         train_score = df_g[df_g['is_training'] == True]['score'].mean()
 
         # output avg score
+        test_genes_list.append(test_genes)
+        test_pred_list.append(ad_ge_test)
         test_score_list.append(test_score)
         train_score_list.append(train_score)
         print(
@@ -251,8 +260,17 @@ def cross_val(ad_sc,
 
     avg_test_score = np.mean(test_score_list)
     avg_train_score = np.mean(train_score_list)
-    cv_dict = {'mode': mode, 'weighting': scale, 'lambda_d': lambda_d, 'lambda_g1': lambda_g1, 'lambda_g2': lambda_g2,
-               'avg_test_score': avg_test_score, 'avg_train_score': avg_train_score}
+
+    cv_dict = {'mode': mode,
+               'weighting': scale,
+               'lambda_d': lambda_d, 'lambda_g1': lambda_g1, 'lambda_g2': lambda_g2,
+               'avg_test_score': avg_test_score,
+               'avg_train_score': avg_train_score}
+
+    test_gene_dict = {'test_gene': test_genes_list,
+                      'pred_sp': test_pred_list,
+                      'test_score': test_score_list}
+
     print('cv test score {:.3f}'.format(avg_test_score))
     print('cv train score {:.3f}'.format(avg_train_score))
 
@@ -260,7 +278,7 @@ def cross_val(ad_sc,
         experiment.log_metric("avg test score", np.average(avg_test_score))
         experiment.log_metric("avg train score", np.average(avg_train_score))
 
-    return cv_dict
+    return cv_dict, test_gene_dict
 
 
 # DEPRECATED
