@@ -277,8 +277,8 @@ def cross_val(ad_sc,
         experiment.log_metric("avg train score", np.average(avg_train_score))
 
     if mode=='loo' and return_gene_pred:
-        df_test_gene_pred = pd.DataFrame(data=np.squeeze(test_genes_list),
-                                         columns=ad_sp.var.index,
+        df_test_gene_pred = pd.DataFrame(data=np.squeeze(test_pred_list),
+                                         columns=ad_sp.obs.index,
                                          index=np.squeeze(test_genes))
         df_test_gene_pred.insert(0, 'test_score', test_score_list)
 
