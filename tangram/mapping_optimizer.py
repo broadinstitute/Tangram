@@ -17,8 +17,7 @@ class Mapper:
     Allows instantiating and running the optimizer for Tangram, without filtering.
     Once instantiated, the optimizer is run with the 'train' method, which also returns the mapping result.
     """
-
-    def __init__(self, S, G, d=None, d_source=None,
+    def __init__(self, S, G, d, 
                  lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu', adata_map=None):
         """
         Instantiate the Tangram optimizer (without filtering).
@@ -26,10 +25,8 @@ class Mapper:
             S (ndarray): Single nuclei matrix, shape = (number_cell, number_genes).
             G (ndarray): Spatial transcriptomics matrix, shape = (number_spots, number_genes).
                 Spots can be single cells or they can contain multiple cells.
-            d (ndarray): Spatial density of cells, shape = (number_spots,). If not provided, the density term is ignored.
+            d (ndarray): Spatial density of cells, shape = (number_spots,).
                 This array should satisfy the constraints d.sum() == 1.
-            d_source (ndarray): Density of single cells in single cell clusters. To be used when S corresponds to cluster-level expression.
-                This array should satisfy the constraint d_source.sum() == 1.
             lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
             lambda_d (float): Optional. Strength of density regularizer. Default is 0.
             lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
@@ -41,27 +38,20 @@ class Mapper:
         """
         self.S = torch.tensor(S, device=device, dtype=torch.float32)
         self.G = torch.tensor(G, device=device, dtype=torch.float32)
-
-        self.target_density_enabled = d is not None
-        if self.target_density_enabled:
-            self.d = torch.tensor(d, device=device, dtype=torch.float32)
-
-        self.source_density_enabled = d_source is not None
-        if self.source_density_enabled:
-            self.d_source = torch.tensor(d_source, device=device, dtype=torch.float32)
+        self.d = torch.tensor(d, device=device, dtype=torch.float32)
 
         self.lambda_d = lambda_d
         self.lambda_g1 = lambda_g1
         self.lambda_g2 = lambda_g2
         self.lambda_r = lambda_r
         self._density_criterion = torch.nn.KLDivLoss(reduction='sum')
-
+        
         if adata_map is None:
             self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
         else:
             raise NotImplemented
             self.M = adata_map.X  # doesn't work. maybe apply inverse softmax
-
+            
         self.M = torch.tensor(self.M, device=device, requires_grad=True, dtype=torch.float32)
 
     def _loss_fn(self, verbose=True):
@@ -75,15 +65,8 @@ class Mapper:
         """
         M_probs = softmax(self.M, dim=1)
 
-        if self.target_density_enabled and self.source_density_enabled:
-            d_pred = torch.log(self.d_source @ M_probs)  # KL wants the log in first argument
-            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
-
-        elif self.target_density_enabled and not self.source_density_enabled:
-            d_pred = torch.log(M_probs.sum(axis=0) / self.M.shape[0])  # KL wants the log in first argument
-            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
-        else:
-            density_term = None
+        d_pred = torch.log(M_probs.sum(axis=0) / self.M.shape[0])  # KL wants the log in first argument
+        density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
 
         G_pred = torch.matmul(M_probs.t(), self.S)
         gv_term = self.lambda_g1 * cosine_similarity(G_pred, self.G, dim=0).mean()
@@ -94,37 +77,14 @@ class Mapper:
 
         if verbose:
             main_loss = (gv_term / self.lambda_g1).tolist()
-            kl_reg = (density_term / self.lambda_d).tolist() if density_term is not None else np.nan
+            kl_reg = (density_term / self.lambda_d).tolist()
             vg_reg = (vg_term / self.lambda_g2).tolist()
-
-
-            if not np.isnan(kl_reg) and not np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, kl_reg, vg_reg
-                )
-
-            elif np.isnan(kl_reg) and np.isnan(vg_reg):
-                msg = 'Score: {:.3f}'.format(
-                    main_loss
-                )
-
-            elif np.isnan(kl_reg):
-                msg = 'Score: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, vg_reg
-                )
-
-            elif np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}'.format(
-                    main_loss, kl_reg
-                )
-
+            msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
+                main_loss, kl_reg, vg_reg
+            )
             print(msg)
-
-        total_loss = - expression_term - regularizer_term
-        if density_term is not None:
-            total_loss = total_loss + density_term
-
-        return total_loss
+            
+        return density_term - expression_term - regularizer_term
 
     def train(self, num_epochs, learning_rate=0.1, print_each=100):
         """

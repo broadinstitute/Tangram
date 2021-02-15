@@ -11,5 +11,3 @@ dependencies:
   - nb_conda=2.2.1
   - pip:
     - scanpy==1.6.0
-    - comet_ml
-    - scikit-learn
