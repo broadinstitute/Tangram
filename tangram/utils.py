@@ -8,6 +8,10 @@ import gzip
 import pickle
 import scanpy as sc
 
+from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import KFold
+from comet_ml import Experiment
+
 from . import mapping_utils as mu
 
 
@@ -112,13 +116,16 @@ def project_cell_annotations(adata_map, annotation='cell_type'):
     return df_ct_prob
 
 
-def project_genes(adata_map, adata_sc):
+def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     """
         Transfer gene expression from the single cell onto space.
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
-    if adata_map.obs.index.equals(adata_sc.obs.index) is False:
+    if cluster_label:
+        adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
+
+    if not adata_map.obs.index.equals(adata_sc.obs.index):
         raise ValueError('The two AnnDatas need to have same `obs` index.')
     if hasattr(adata_sc.X, 'toarray'):
         adata_sc.X = adata_sc.X.toarray()
@@ -164,6 +171,138 @@ def compare_spatial_geneexp(adata_space_1, adata_space_2):
     df_g['sparsity_2'] = adata_space_2.var.sparsity
     df_g = df_g.sort_values(by='score', ascending=False)
     return df_g
+
+
+def cv_data_gen(ad_sc, ad_sp, mode='loo'):
+    """ This function generates cross validation datasets
+
+    Args:
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
+        mode: string, support 'loo' and 'kfold'
+
+    """
+    genes_array = np.array(list(set(ad_sc.var.index.values)))
+
+    if mode == 'loo':
+        cv = LeaveOneOut()
+    elif mode == 'kfold':
+        cv = KFold(n_splits=10)
+
+    for train_idx, test_idx in cv.split(genes_array):
+        train_genes = genes_array[train_idx]
+        test_genes = list(genes_array[test_idx])
+        ad_sc_train, ad_sp_train = ad_sc[:, train_genes], ad_sp[:, train_genes]
+        yield ad_sc_train, ad_sp_train, test_genes
+
+def cross_val(ad_sc,
+              ad_sp,
+              cluster_label=None,
+              scale=True,
+              lambda_d=0,
+              lambda_g1=1,
+              lambda_g2=0,
+              lambda_r=0,
+              num_epochs=1000,
+              device='cpu',
+              learning_rate=0.1,
+              mode='loo',
+              return_gene_pred=False,
+              experiment=None
+              ):
+    """ This function executes cross validation
+
+    Args:
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
+        lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
+        lambda_d (float): Optional. Strength of density regularizer. Default is 0.
+        lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
+        lambda_r (float): Optional. Strength of entropy regularizer.
+        cluster_label: string, the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+        scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
+        mode: string, cross validation mode, 'loo' and 'kfold' supported
+        return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
+        experiment: bool, experiment object in comet-ml for logging training in comet-ml
+    Returns:
+        cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
+        (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
+    """
+    test_genes_list = []
+    test_pred_list = []
+    test_score_list = []
+    train_score_list = []
+    curr_cv_set = 1
+    for ad_sc_train, ad_sp_train, test_genes in cv_data_gen(ad_sc, ad_sp, mode):
+        # train
+        adata_map = mu.map_cells_to_space(
+            adata_cells=ad_sc_train,
+            adata_space=ad_sp_train,
+            mode='clusters',
+            device=device,
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            cluster_label=cluster_label,
+            scale=scale,
+            lambda_d=lambda_d,
+            lambda_g1=lambda_g1,
+            lambda_g2=lambda_g2,
+            lambda_r=lambda_r
+        )
+
+        # project on space
+        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label, scale=scale)
+
+        # retrieve result for test gene (genes X cluster/cell)
+        if mode == 'loo' and return_gene_pred:
+            ad_ge_test = ad_ge[:,test_genes].X.T
+            test_pred_list.append(ad_ge_test)
+
+        # output scores
+        df_g = compare_spatial_geneexp(ad_ge, ad_sp)
+        test_score = df_g[df_g['is_training'] == False]['score'].mean()
+        train_score = df_g[df_g['is_training'] == True]['score'].mean()
+
+        # output avg score
+        test_genes_list.append(test_genes)
+        test_score_list.append(test_score)
+        train_score_list.append(train_score)
+        print(
+            "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score))
+        if experiment:
+            experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
+            experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)
+
+        curr_cv_set += 1
+
+    avg_test_score = np.mean(test_score_list)
+    avg_train_score = np.mean(train_score_list)
+
+    cv_dict = {'mode': mode,
+               'weighting': scale,
+               'lambda_d': lambda_d, 'lambda_g1': lambda_g1, 'lambda_g2': lambda_g2,
+               'avg_test_score': avg_test_score,
+               'avg_train_score': avg_train_score}
+
+    print('cv test score {:.3f}'.format(avg_test_score))
+    print('cv train score {:.3f}'.format(avg_train_score))
+
+    if experiment:
+        experiment.log_metric("avg test score", np.average(avg_test_score))
+        experiment.log_metric("avg train score", np.average(avg_train_score))
+
+    if mode=='loo' and return_gene_pred:
+        df_test_gene_pred = pd.DataFrame(data=np.squeeze(test_pred_list),
+                                         columns=ad_sp.obs.index,
+                                         index=np.squeeze(test_genes_list))
+        df_test_gene_pred.insert(0, 'test_score', test_score_list)
+
+        df_test_gene_true = pd.DataFrame(data=ad_sp.X.T,
+                                         columns=ad_sp.obs.index,
+                                         index=ad_sp.var.index)
+        return cv_dict, (df_test_gene_pred, df_test_gene_true)
+
+    return cv_dict
 
 
 # DEPRECATED
