@@ -14,6 +14,10 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 from . import utils as ut
 
+import sys
+
+logging.basicConfig(format='%(asctime)s | %(levelname)s : %(message)s',
+                     level=logging.INFO, stream=sys.stdout)
 
 def pp_adatas(adata_1, adata_2, genes=None):
     """
@@ -92,6 +96,9 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
     """
 
+    if lambda_g1 == 0:
+        raise ValueError('lambda_g1 cannot be 0.')
+
     if adata_cells.var.index.equals(adata_space.var.index) is False:
         logging.error('Incompatible AnnDatas. Run `pp_adatas().')
         raise ValueError
@@ -157,7 +164,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     #     raise NotImplementedError
 
     # Train Tangram
-    logging.info('Begin training...')
+    logging.info('Begin training with {} mode...'.format(mode))
     mapper = mo.Mapper(
         S=S, G=G, d=d, device=device, adata_map=adata_map,
         **hyperparameters,
