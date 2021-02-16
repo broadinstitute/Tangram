@@ -14,10 +14,7 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 from . import utils as ut
 
-import sys
-
-logging.basicConfig(format='%(asctime)s | %(levelname)s : %(message)s',
-                     level=logging.INFO, stream=sys.stdout)
+logging.getLogger().setLevel(logging.INFO)
 
 def pp_adatas(adata_1, adata_2, genes=None):
     """
