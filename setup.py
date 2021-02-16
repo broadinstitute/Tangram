@@ -24,15 +24,17 @@ setuptools.setup(
     ],
     python_requires='>=3.6',
     install_requires=[
-        "pip>=19.0.0",
-        "torch>=1.4.0",
-        "pandas>=1.1.0",
-        "numpy>=1.19.1",
-        "scipy>=1.5.2",
-        "matplotlib>=3.0.0",
-        "seaborn>=0.10.1",
-        "scanpy==1.6.0",
-        # "jupyterlab>=2.2.6",
+        "python"
+        "pip",
+        "torch",
+        "pandas",
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "seaborn",
+        "scanpy",
+        "comet_ml",
+        "scikit-learn"
     ]
 )
 
