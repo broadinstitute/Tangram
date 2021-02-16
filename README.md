@@ -109,12 +109,12 @@ Tangram has been released in the following publication
 Biancalani* T., Scalia* G. et al. - _Deep learning and alignment of spatially-resolved whole transcriptomes of single cells in the mouse brain with Tangram_ [biorXiv 10.1101/2020.08.29.272831](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v3) (2020)
 
 If you have questions, please contact the authors of the method:
-- Tommaso Biancalani - <tbiancal@broadinstitute.org>  
-- Gabriele Scalia - <gscalia@broadinstitute.org>
+- Tommaso Biancalani - <biancalt@gene.com>  
+- Gabriele Scalia - <gabriele.scalia@roche.com>
 
 PyPI maintainer:
-- Tommaso Biancalani - <tbiancal@broadinstitute.org>
-- Ziqing Lu - <lu.ziq@northeastern.edu>
+- Tommaso Biancalani - <biancalt@gene.com>
+- Ziqing Lu - <luz21@gene.com>
 
 The artwork has been curated by:
 - Anna Hupalowska <ahupalow@broadinstitute.org>
