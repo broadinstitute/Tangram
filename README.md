@@ -8,16 +8,20 @@ Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and base
 Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in the adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
-## How to run Tangram
+## How to run Tangram at cell level
 
-To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. To install and import tangram, please use the following code:
+To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. 
 
+* install tangram-sc from shell:
 ```
     pip install tangram-sc
+```
+* import tangram
+```
     import tangram as tg
 ```
 
-where `/home/tbiancal/git/Tangram` is substituted with your path pointing to the Tangram repo. The load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
+Then load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
 
 ```
     ad_sp = sc.read_h5ad(path)
@@ -42,6 +46,34 @@ The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`
 For more details on how to use Tangram check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/example/1_tutorial_tangram.ipynb). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1SVLUIZR6Da6VUyvX_2RkgVxbPn8f62ge?usp=sharing)
 
 ***
+
+## Run Tangram at cluster level
+
+To enable faster training and consume less memory, Tangram mapping can be done at cell cluster level.
+
+Prepare the input data as the same you would do for cell level Tangram mapping. Then map using following code:
+
+```
+    ad_map = tg.map_cells_to_space(
+                   ad_sc, 
+                   ad_sp,         
+                   mode='clusters',
+                   cluster_label='subclass_label')
+```
+
+Provided cluster_label must belong to ad_sc.obs. Above example code is to map at 'subclass_label' level, and the 'subclass_label' is in ad_sc.obs.
+
+To project gene expression to space, use `tg.project_genes` and be sure to set the `cluster_label` argument to the same cluster label in mapping.
+
+```
+    ad_ge = tg.project_genes(
+                  ad_map, 
+                  ad_sc,
+                  cluster_label='subclass_label')
+```
+
+***
+
 ## How Tangram works under the hood
 Tangram instantiates a `Mapper` object passing the following arguments:
 - _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
