@@ -292,15 +292,15 @@ def cross_val(ad_sc,
         experiment.log_metric("avg train score", np.average(avg_train_score))
 
     if mode=='loo' and return_gene_pred:
-        df_test_gene_pred = pd.DataFrame(data=np.squeeze(test_pred_list),
-                                         columns=ad_sp.obs.index,
-                                         index=np.squeeze(test_genes_list))
-        df_test_gene_pred.insert(0, 'test_score', test_score_list)
 
-        df_test_gene_true = pd.DataFrame(data=ad_sp.X.T,
-                                         columns=ad_sp.obs.index,
-                                         index=ad_sp.var.index)
-        return cv_dict, (df_test_gene_pred, df_test_gene_true)
+        # output AnnData for generated spatial data by LOOCV
+        ad_ge_cv = sc.AnnData(X=np.squeeze(test_pred_list).T, 
+                              obs=ad_sp.obs.copy(), 
+                              var=pd.DataFrame(index=test_genes_list)
+
+        ad_ge_cv.var['cv_test_score'] = test_score_list
+
+        return cv_dict, ad_ge_cv
 
     return cv_dict
 
