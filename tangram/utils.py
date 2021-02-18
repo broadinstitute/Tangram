@@ -298,7 +298,8 @@ def cross_val(ad_sc,
                               obs=ad_sp.obs.copy(), 
                               var=pd.DataFrame(index=test_genes_list)
 
-        ad_ge_cv.var['cv_test_score'] = test_score_list
+        # ad_ge_cv.var['cv_test_score'] = test_score_list
+        print(ad_ge_cv)
 
         return cv_dict, ad_ge_cv
 
