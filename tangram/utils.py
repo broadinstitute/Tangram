@@ -296,10 +296,9 @@ def cross_val(ad_sc,
         # output AnnData for generated spatial data by LOOCV
         ad_ge_cv = sc.AnnData(X=np.squeeze(test_pred_list).T, 
                               obs=ad_sp.obs.copy(), 
-                              var=pd.DataFrame(index=test_genes_list)
+                              var=pd.DataFrame(index=test_genes_list))
 
-        # ad_ge_cv.var['cv_test_score'] = test_score_list
-        print(ad_ge_cv)
+        ad_ge_cv.var['cv_test_score'] = test_score_list
 
         return cv_dict, ad_ge_cv
 
