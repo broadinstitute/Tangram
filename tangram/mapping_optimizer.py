@@ -56,9 +56,11 @@ class Mapper:
         self.lambda_r = lambda_r
         self._density_criterion = torch.nn.KLDivLoss(reduction='sum')
 
+        self.random_state = random_state
+
         if adata_map is None:
-            if random_state:
-                np.random.seed(seed=random_state)
+            if self.random_state:
+                np.random.seed(seed=self.random_state)
             self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
         else:
             raise NotImplemented
@@ -128,7 +130,7 @@ class Mapper:
 
         return total_loss
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100, random_state=None):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100):
         """
         Run the optimizer and returns the mapping outcome.
         Args:
@@ -138,8 +140,8 @@ class Mapper:
         Returns:
             The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
         """
-        if random_state:
-            torch.manual_seed(seed=random_state)
+        if self.random_state:
+            torch.manual_seed(seed=self.random_state)
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
         logging.warning(f'Printing scores every {print_each} epochs.')
         for t in range(num_epochs):

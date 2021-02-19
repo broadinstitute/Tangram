@@ -95,12 +95,17 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
     """
 
+    # check invalid values for arguments
     if lambda_g1 == 0:
         raise ValueError('lambda_g1 cannot be 0.')
+
+    if mode not in ['clusters', 'cells']:
+        raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
     if adata_cells.var.index.equals(adata_space.var.index) is False:
         logging.error('Incompatible AnnDatas. Run `pp_adatas().')
         raise ValueError
+    
     if mode == 'clusters' and cluster_label is None:
         raise ValueError('An cluster_label must be specified if mode = clusters.')
 
@@ -172,8 +177,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     # TODO `train` should return the loss function
     mapping_matrix = mapper.train(
         learning_rate=learning_rate,
-        num_epochs=num_epochs,
-        random_state=random_state
+        num_epochs=num_epochs
     )
 
     logging.info('Saving results..')
