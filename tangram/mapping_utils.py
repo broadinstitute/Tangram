@@ -80,7 +80,9 @@ def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
     return adata_ret
 
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
-                       device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0):
+                       device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
+                       cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
+                       random_state=None):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -164,12 +166,14 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     logging.info('Begin training with {} mode...'.format(mode))
     mapper = mo.Mapper(
         S=S, G=G, d=d, device=device, adata_map=adata_map,
+        random_state=random_state,
         **hyperparameters,
     )
     # TODO `train` should return the loss function
     mapping_matrix = mapper.train(
         learning_rate=learning_rate,
-        num_epochs=num_epochs
+        num_epochs=num_epochs,
+        random_state=random_state
     )
 
     logging.info('Saving results..')

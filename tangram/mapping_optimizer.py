@@ -19,7 +19,7 @@ class Mapper:
     """
 
     def __init__(self, S, G, d=None, d_source=None,
-                 lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu', adata_map=None):
+                 lambda_g1=1., lambda_d=0, lambda_g2=0, lambda_r=0, device='cpu', adata_map=None, random_state=None):
         """
         Instantiate the Tangram optimizer (without filtering).
         Args:
@@ -57,6 +57,8 @@ class Mapper:
         self._density_criterion = torch.nn.KLDivLoss(reduction='sum')
 
         if adata_map is None:
+            if random_state:
+                np.random.seed(seed=random_state)
             self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
         else:
             raise NotImplemented
@@ -126,7 +128,7 @@ class Mapper:
 
         return total_loss
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100, random_state=None):
         """
         Run the optimizer and returns the mapping outcome.
         Args:
@@ -136,6 +138,8 @@ class Mapper:
         Returns:
             The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
         """
+        if random_state:
+            torch.manual_seed(seed=random_state)
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
         logging.warning(f'Printing scores every {print_each} epochs.')
         for t in range(num_epochs):
