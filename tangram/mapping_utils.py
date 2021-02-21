@@ -82,7 +82,7 @@ def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
                        device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
                        cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
-                       random_state=None):
+                       random_state=None, verbose=True):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -107,7 +107,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         raise ValueError
     
     if mode == 'clusters' and cluster_label is None:
-        raise ValueError('An cluster_label must be specified if mode = clusters.')
+        raise ValueError('A cluster_label must be specified if mode = clusters.')
 
     if mode == 'clusters':
         adata_cells = adata_to_cluster_expression(adata_cells, cluster_label, scale, add_density=True)
@@ -175,9 +175,15 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         **hyperparameters,
     )
     # TODO `train` should return the loss function
-    mapping_matrix = mapper.train(
-        learning_rate=learning_rate,
-        num_epochs=num_epochs
+    if verbose:
+        print_each=100
+    else:
+        print_each=None
+
+    mapping_matrix, training_history = mapper.train(
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            print_each=print_each,
     )
 
     logging.info('Saving results..')
@@ -202,6 +208,8 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     adata_map.uns['train_genes_df']['sparsity_sc'] = adata_cells.var.sparsity
     adata_map.uns['train_genes_df']['sparsity_sp'] = adata_space.var.sparsity
     adata_map.uns['train_genes_df']['sparsity_diff'] = adata_space.var.sparsity - adata_cells.var.sparsity
+
+    adata_map.uns['training_history'] = pd.DataFrame(training_history)
 
     return adata_map
 
