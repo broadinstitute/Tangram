@@ -1,7 +1,18 @@
-import pytest
 import scanpy as sc
 import tangram as tg
 import numpy as np
+
+import pytest
+import os
+import wget
+
+# to run test_tangram.py on your local machine, please set up as follow:
+# - create test environment according to environment.yml (conda create env -f environment.yml) to make sure environment matches developing environment
+# - install extra package: pytest, pytest-cov
+# - install editable version of tangram package (pip install -e .)
+#      - check tangram version (conda list tangram), make sure it is the developing version
+# - make sure the test data are ready under test_data folder
+
 
 # mapping input data (anndata formated single cell data)
 @pytest.fixture
