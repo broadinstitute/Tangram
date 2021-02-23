@@ -3,8 +3,6 @@ import tangram as tg
 import numpy as np
 
 import pytest
-import os
-import wget
 
 # to run test_tangram.py on your local machine, please set up as follow:
 # - create test environment according to environment.yml (conda create env -f environment.yml) to make sure environment matches developing environment
@@ -49,7 +47,8 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     lambda_d=lambda_d,
                     scale=scale,
                     random_state=42,
-                    num_epochs=500)
+                    num_epochs=500, 
+                    verbose=False)
 
     # check if first element of output_admap.X is equal to expected value
     assert ad_map.X[0,0] == e
@@ -73,7 +72,8 @@ def test_invalid_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1
                     lambda_d=lambda_d,
                     scale=scale,
                     random_state=42,
-                    num_epochs=500)
+                    num_epochs=500,
+                    verbose=False)
         assert e in str(exc_info.value)
 
 # test to see if the average training score matches between the one in training history and the one from compare_spatial_geneexp function
@@ -85,6 +85,7 @@ def test_invalid_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1
     ('clusters', 'subclass', 1, 1, 0, False),
     ('clusters', 'subclass', 1, 0, 1, True),
     ('clusters', 'subclass', 1, 0, 1, False),
+    # ('cells', None, 1, 0, 0, True), #this would take too long
 ])
 def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale):
     
@@ -100,7 +101,8 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     lambda_d=lambda_d,
                     scale=scale,
                     random_state=42,
-                    num_epochs=500)
+                    num_epochs=500,
+                    verbose=False)
 
     # call project_genes to project input ad_sc data to ad_ge spatial data with ad_map
     ad_ge = tg.project_genes(adata_map=ad_map, adata_sc=ad_sc, cluster_label=cluster_label, scale=scale)
@@ -110,7 +112,8 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
     avg_score_train_hist = list(ad_map.uns['training_history']['main_loss'].values)[-1]
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
-    assert avg_score_df == avg_score_train_hist
+    # assert avg_score_df == avg_score_train_hist
+    assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
 
 
 

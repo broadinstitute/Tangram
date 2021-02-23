@@ -14,6 +14,8 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 from . import utils as ut
 
+from torch.nn.functional import cosine_similarity
+
 logging.getLogger().setLevel(logging.INFO)
 
 def pp_adatas(adata_1, adata_2, genes=None):
@@ -115,17 +117,17 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     logging.info('Allocate tensors for mapping.')
     # Allocate tensors (AnnData matrix can be sparse or not)
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells.X.toarray(), dtype='float32')
+        S = np.array(adata_cells.X.toarray(), dtype='float64')
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells.X, dtype='float32')
+        S = np.array(adata_cells.X, dtype='float64')
     else:
         X_type = type(adata_cells.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space.X.toarray(), dtype='float32')
+        G = np.array(adata_space.X.toarray(), dtype='float64')
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space.X, dtype='float32')
+        G = np.array(adata_space.X, dtype='float64')
     else:
         X_type = type(adata_space.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
@@ -193,10 +195,20 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
 
     # Annotate cosine similarity of each training gene
     G_predicted = (adata_map.X.T @ S)
+
+    # cos_sims = []
+    # for v1, v2 in zip(G.T, G_predicted.T):
+    #     norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
+    #     cos_sims.append((v1 @ v2) / norm_sq)
+
+    # use torch to calculate cos_sims:
     cos_sims = []
     for v1, v2 in zip(G.T, G_predicted.T):
-        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
-        cos_sims.append((v1 @ v2) / norm_sq)
+        v1_tensor = torch.tensor(v1)
+        v2_tensor = torch.tensor(v2)
+        cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
+        cos_sims.append(cos_sim)
+
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=['train_score'])
     df_cs = df_cs.sort_values(by='train_score', ascending=False)
