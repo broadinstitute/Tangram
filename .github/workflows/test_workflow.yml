@@ -27,7 +27,7 @@ jobs:
 
       - name: run test
         run: |
-          conda init bash
+          conda init
           exec bash
           conda activate base
           conda info
