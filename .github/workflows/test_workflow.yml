@@ -26,10 +26,12 @@ jobs:
 
       - name: install extra packages for testing
         run: |
+          conda activate base
           pip install pytest pytest-cov
 
       - name: run tests
         run: |
+          conda activate base
           conda info
           conda list
           pytest tests/
