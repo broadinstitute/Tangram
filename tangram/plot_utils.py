@@ -13,6 +13,8 @@ from scipy.sparse.csr import csr_matrix
 from . import utils as ut
 from . import mapping_utils as mu
 
+import pandas as pd
+
 
 def plot_training_scores(adata_map, bins='auto', alpha=.7):
     """
@@ -202,3 +204,36 @@ mapping_colors = {'L6 CT': (0.19215686274509805, 0.5098039215686274, 0.741176470
                   'L4': '#d61f1dff',
                   'Macrophage': '#2b2d2fff',
                   'CR': '#000000ff'}
+
+
+def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
+    """
+    plot gene level test scores with each gene's sparsity
+    
+    Args:
+    ad_sc: anndata single cell data
+    ad_sp: anndata spatial data
+    gene_test_score_df: pandas dataframe with "gene names" as the index and "test_score" as the column
+    """
+    ut.annotate_gene_sparsity(ad_sc)
+    ut.annotate_gene_sparsity(ad_sp)
+    
+    df = pd.concat([gene_test_score_df['test_score'], ad_sc.var['sparsity'], ad_sp.var['sparsity'], (ad_sp.var['sparsity'] - ad_sc.var['sparsity'])], axis=1)
+    df.columns = ['test_score', 'sparsity_sc', 'sparsity_sp', 'sparsity_diff']
+    
+    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
+    axs_f = axs.flatten()
+    
+    axs_f[0].set_title('Test scores for single genes')
+    sns.histplot(data=df, y='test_score', bins=10, ax=axs_f[0]);
+
+    axs_f[1].set_title('score vs sparsity (single cells)')
+    sns.scatterplot(data=df, y='test_score', x='sparsity_sc', ax=axs_f[1], alpha=alpha)
+    
+    axs_f[2].set_title('score vs sparsity (spatial)')
+    sns.scatterplot(data=df, y='test_score', x='sparsity_sp', ax=axs_f[2], alpha=alpha)
+    
+    axs_f[3].set_title('score vs sparsity (sp - sc)')
+    sns.scatterplot(data=df, y='test_score', x='sparsity_diff', ax=axs_f[3], alpha=alpha)
+    
+    plt.tight_layout()

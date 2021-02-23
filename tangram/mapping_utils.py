@@ -14,6 +14,8 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 from . import utils as ut
 
+from torch.nn.functional import cosine_similarity
+
 logging.getLogger().setLevel(logging.INFO)
 
 def pp_adatas(adata_1, adata_2, genes=None):
@@ -80,7 +82,9 @@ def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
     return adata_ret
 
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
-                       device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0):
+                       device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
+                       cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
+                       random_state=None, verbose=True):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -93,14 +97,19 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
     """
 
+    # check invalid values for arguments
     if lambda_g1 == 0:
         raise ValueError('lambda_g1 cannot be 0.')
+
+    if mode not in ['clusters', 'cells']:
+        raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
     if adata_cells.var.index.equals(adata_space.var.index) is False:
         logging.error('Incompatible AnnDatas. Run `pp_adatas().')
         raise ValueError
+    
     if mode == 'clusters' and cluster_label is None:
-        raise ValueError('An cluster_label must be specified if mode = clusters.')
+        raise ValueError('A cluster_label must be specified if mode = clusters.')
 
     if mode == 'clusters':
         adata_cells = adata_to_cluster_expression(adata_cells, cluster_label, scale, add_density=True)
@@ -108,17 +117,17 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     logging.info('Allocate tensors for mapping.')
     # Allocate tensors (AnnData matrix can be sparse or not)
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells.X.toarray(), dtype='float32')
+        S = np.array(adata_cells.X.toarray(), dtype='float64')
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells.X, dtype='float32')
+        S = np.array(adata_cells.X, dtype='float64')
     else:
         X_type = type(adata_cells.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space.X.toarray(), dtype='float32')
+        G = np.array(adata_space.X.toarray(), dtype='float64')
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space.X, dtype='float32')
+        G = np.array(adata_space.X, dtype='float64')
     else:
         X_type = type(adata_space.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
@@ -164,12 +173,19 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     logging.info('Begin training with {} mode...'.format(mode))
     mapper = mo.Mapper(
         S=S, G=G, d=d, device=device, adata_map=adata_map,
+        random_state=random_state,
         **hyperparameters,
     )
     # TODO `train` should return the loss function
-    mapping_matrix = mapper.train(
-        learning_rate=learning_rate,
-        num_epochs=num_epochs
+    if verbose:
+        print_each=100
+    else:
+        print_each=None
+
+    mapping_matrix, training_history = mapper.train(
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            print_each=print_each,
     )
 
     logging.info('Saving results..')
@@ -179,10 +195,20 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
 
     # Annotate cosine similarity of each training gene
     G_predicted = (adata_map.X.T @ S)
+
+    # cos_sims = []
+    # for v1, v2 in zip(G.T, G_predicted.T):
+    #     norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
+    #     cos_sims.append((v1 @ v2) / norm_sq)
+
+    # use torch to calculate cos_sims:
     cos_sims = []
     for v1, v2 in zip(G.T, G_predicted.T):
-        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
-        cos_sims.append((v1 @ v2) / norm_sq)
+        v1_tensor = torch.tensor(v1)
+        v2_tensor = torch.tensor(v2)
+        cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
+        cos_sims.append(cos_sim)
+
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=['train_score'])
     df_cs = df_cs.sort_values(by='train_score', ascending=False)
@@ -194,6 +220,8 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     adata_map.uns['train_genes_df']['sparsity_sc'] = adata_cells.var.sparsity
     adata_map.uns['train_genes_df']['sparsity_sp'] = adata_space.var.sparsity
     adata_map.uns['train_genes_df']['sparsity_diff'] = adata_space.var.sparsity - adata_cells.var.sparsity
+
+    adata_map.uns['training_history'] = pd.DataFrame(training_history)
 
     return adata_map
 

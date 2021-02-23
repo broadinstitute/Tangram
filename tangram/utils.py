@@ -303,57 +303,57 @@ def cross_val(ad_sc,
     return cv_dict
 
 
-# DEPRECATED
-def transfer_annotations_prob(mapping_matrix, to_transfer):
-    """
-    Transfer cell annotations onto space through a mapping matrix.
-    Args:
-        mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
-        to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
-    Returns:
-        A matrix of annotations onto space, with shape (number_spots, number_annotations)
-    """
-    return mapping_matrix.transpose() @ to_transfer
+# # DEPRECATED
+# def transfer_annotations_prob(mapping_matrix, to_transfer):
+#     """
+#     Transfer cell annotations onto space through a mapping matrix.
+#     Args:
+#         mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
+#         to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
+#     Returns:
+#         A matrix of annotations onto space, with shape (number_spots, number_annotations)
+#     """
+#     return mapping_matrix.transpose() @ to_transfer
 
 
-def transfer_annotations_prob_filter(mapping_matrix, filter, to_transfer):
-    """
-    Transfer cell annotations onto space through a mapping matrix and a filter.
-    Args:
-        mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
-        filter (ndarray): Filter with shape (number_cells,).
-        to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
-    Returns:
-        A matrix of annotations onto space, with shape (number_spots, number_annotations).
-    """
-    tt = to_transfer * filter[:, np.newaxis]
-    return mapping_matrix.transpose() @ tt
+# def transfer_annotations_prob_filter(mapping_matrix, filter, to_transfer):
+#     """
+#     Transfer cell annotations onto space through a mapping matrix and a filter.
+#     Args:
+#         mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
+#         filter (ndarray): Filter with shape (number_cells,).
+#         to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
+#     Returns:
+#         A matrix of annotations onto space, with shape (number_spots, number_annotations).
+#     """
+#     tt = to_transfer * filter[:, np.newaxis]
+#     return mapping_matrix.transpose() @ tt
 
 
-def df_to_cell_types(df, cell_types):
-    """
-    Utility function that "randomly" assigns cell coordinates in a voxel to known numbers of cell types in that voxel.
-    Used for deconvolution.
-    Args:
-        df (DataFrame): Columns correspond to cell types.  Each row in the DataFrame corresponds to a voxel and
-            specifies the known number of cells in that voxel for each cell type (int).
-            The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
-        cell_types (sequence): Sequence of cell type names to be considered for deconvolution.
-            Columns in 'df' not included in 'cell_types' are ignored for assignment.
-    Returns:
-        A dictionary <cell type name> -> <list of (x,y) coordinates for the cell type>
-    """
-    df_cum_sums = df[cell_types].cumsum(axis=1)
+# def df_to_cell_types(df, cell_types):
+#     """
+#     Utility function that "randomly" assigns cell coordinates in a voxel to known numbers of cell types in that voxel.
+#     Used for deconvolution.
+#     Args:
+#         df (DataFrame): Columns correspond to cell types.  Each row in the DataFrame corresponds to a voxel and
+#             specifies the known number of cells in that voxel for each cell type (int).
+#             The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
+#         cell_types (sequence): Sequence of cell type names to be considered for deconvolution.
+#             Columns in 'df' not included in 'cell_types' are ignored for assignment.
+#     Returns:
+#         A dictionary <cell type name> -> <list of (x,y) coordinates for the cell type>
+#     """
+#     df_cum_sums = df[cell_types].cumsum(axis=1)
 
-    df_c = df.copy()
+#     df_c = df.copy()
 
-    for i in df_cum_sums.columns:
-        df_c[i] = df_cum_sums[i]
+#     for i in df_cum_sums.columns:
+#         df_c[i] = df_cum_sums[i]
 
-    cell_types_mapped = defaultdict(list)
-    for i_index, i in enumerate(cell_types):
-        for j_index, j in df_c.iterrows():
-            start_ind = 0 if i_index == 0 else j[cell_types[i_index - 1]]
-            end_ind = j[i]
-            cell_types_mapped[i].extend(j['centroids'][start_ind:end_ind].tolist())
-    return cell_types_mapped
+#     cell_types_mapped = defaultdict(list)
+#     for i_index, i in enumerate(cell_types):
+#         for j_index, j in df_c.iterrows():
+#             start_ind = 0 if i_index == 0 else j[cell_types[i_index - 1]]
+#             end_ind = j[i]
+#             cell_types_mapped[i].extend(j['centroids'][start_ind:end_ind].tolist())
+#     return cell_types_mapped
