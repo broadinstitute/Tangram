@@ -16,13 +16,11 @@ jobs:
       
       - name: set up conda environment
         uses: conda-incubator/setup-miniconda@v2
-        with:
-          activate-environment: tg_test
 
       - name: create environment which is aligned with production environment
         run: |
+          conda env update test --file environment.yml
           conda info
-          conda env update tg-test --file environment.yml
 
       - name: install extra packages for testing
         run: |
