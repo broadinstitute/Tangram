@@ -15,13 +15,13 @@ import pytest
 # mapping input data (anndata formated single cell data)
 @pytest.fixture
 def ad_sc():
-    ad_sc = sc.read_h5ad('test_data/ad_sc_readytomap.h5ad')
+    ad_sc = sc.read_h5ad('test_data/test_ad_sc_readytomap.h5ad')
     return ad_sc
 
 # mapping input data (anndata formated spatial data)
 @pytest.fixture
 def ad_sp():
-    ad_sp = sc.read_h5ad('test_data/ad_sp_readytomap.h5ad')
+    ad_sp = sc.read_h5ad('test_data/test_ad_sp_readytomap.h5ad')
     return ad_sp
 
 # test mapping function with different parameters

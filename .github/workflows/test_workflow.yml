@@ -16,10 +16,13 @@ jobs:
       
       - name: set up conda environment
         uses: conda-incubator/setup-miniconda@v2
+        with: 
+          auto-activate-base: true 
+          activate-environment: ""
 
       - name: create environment which is aligned with production environment
         run: |
-          conda env update --file environment.yml --name test
+          conda env update --file environment.yml --name base
           conda info
 
       - name: install extra packages for testing
