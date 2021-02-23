@@ -22,6 +22,7 @@ jobs:
           environment-file: environment.yml
 
       - name: run test
+        shell: bash -l {0}
         run: |
           conda install pytest
           pytest tests/
