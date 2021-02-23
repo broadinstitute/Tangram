@@ -20,17 +20,15 @@ jobs:
           auto-activate-base: true 
           activate-environment: ""
 
-      - name: create environment which is aligned with production environment
+      - name: create environment which is aligned with production environment plus pytest
         run: |
           conda env update --file environment.yml --name base
+          pip install pytest
 
-      - name: install extra packages for testing
+      - name: run test
         run: |
-          conda activate base
-          pip install pytest pytest-cov
-
-      - name: run tests
-        run: |
+          conda init bash
+          exec bash
           conda activate base
           conda info
           conda list
