@@ -17,20 +17,12 @@ jobs:
       - name: set up conda environment
         uses: conda-incubator/setup-miniconda@v2
         with: 
-          auto-activate-base: true 
-          activate-environment: ""
-
-      - name: create environment which is aligned with production environment plus pytest
-        run: |
-          conda env update --file environment.yml --name base
-          pip install pytest
+          activate-environment: test
+          auto-activate-base: false
+          environment-file: environment.yml
 
       - name: run test
         run: |
-          conda init
-          exec bash
-          conda activate base
-          conda info
-          conda list
+          conda install pytest
           pytest tests/
         
