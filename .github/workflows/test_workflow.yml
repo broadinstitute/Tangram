@@ -19,7 +19,7 @@ jobs:
 
       - name: create environment which is aligned with production environment
         run: |
-          conda update -n test --file environment.yml
+          conda env update --file environment.yml --name test
           conda info
 
       - name: install extra packages for testing
