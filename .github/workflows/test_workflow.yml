@@ -1,0 +1,34 @@
+name: Tangram QA
+
+on: [push]
+
+jobs:
+  test:
+    runs_on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: set up python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      
+      - name: set up conda environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: tg_test
+
+      - name: create environment which is aligned with production environment
+        run: |
+          conda info
+          conda env update tg-test --file environment.yml
+
+      - name: install extra packages for testing
+        run: |
+          pip install pytest pytest-cov
+
+      - name: run tests
+        run: |
+          pytest tests/
+        
