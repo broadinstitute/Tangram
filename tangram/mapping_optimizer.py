@@ -92,6 +92,7 @@ class Mapper:
         G_pred = torch.matmul(M_probs.t(), self.S)
         gv_term = self.lambda_g1 * cosine_similarity(G_pred, self.G, dim=0).mean()
         vg_term = self.lambda_g2 * cosine_similarity(G_pred, self.G, dim=1).mean()
+
         expression_term = gv_term + vg_term
 
         regularizer_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
@@ -143,7 +144,9 @@ class Mapper:
         if self.random_state:
             torch.manual_seed(seed=self.random_state)
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
-        logging.warning(f'Printing scores every {print_each} epochs.')
+
+        if print_each:
+            logging.info(f'Printing scores every {print_each} epochs.')
 
         keys = ['total_loss', 'main_loss', 'vg_reg', 'gv_reg']
         values = [[] for i in range(4)]
@@ -154,10 +157,10 @@ class Mapper:
             else:
                 run_loss = self._loss_fn(verbose=True)
             loss = run_loss[0]
-            training_history['total_loss'].append(loss)
-            training_history['main_loss'].append(run_loss[1])
-            training_history['vg_reg'].append(run_loss[2])
-            training_history['gv_reg'].append(run_loss[3])
+            training_history['total_loss'].append(np.float64(loss))
+            training_history['main_loss'].append(np.float64(run_loss[1]))
+            training_history['vg_reg'].append(np.float64(run_loss[2]))
+            training_history['gv_reg'].append(np.float64(run_loss[3]))
 
             optimizer.zero_grad()
             loss.backward()

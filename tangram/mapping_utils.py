@@ -14,7 +14,7 @@ from scipy.sparse.csr import csr_matrix
 from . import mapping_optimizer as mo
 from . import utils as ut
 
-from torch.nn.functional import cosine_similarity
+# from torch.nn.functional import cosine_similarity
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -195,20 +195,10 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
 
     # Annotate cosine similarity of each training gene
     G_predicted = (adata_map.X.T @ S)
-
-    # cos_sims = []
-    # for v1, v2 in zip(G.T, G_predicted.T):
-    #     norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
-    #     cos_sims.append((v1 @ v2) / norm_sq)
-
-    # use torch to calculate cos_sims:
     cos_sims = []
     for v1, v2 in zip(G.T, G_predicted.T):
-        v1_tensor = torch.tensor(v1)
-        v2_tensor = torch.tensor(v2)
-        cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
-        cos_sims.append(cos_sim)
-
+        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
+        cos_sims.append((v1 @ v2) / norm_sq)
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=['train_score'])
     df_cs = df_cs.sort_values(by='train_score', ascending=False)
@@ -221,7 +211,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     adata_map.uns['train_genes_df']['sparsity_sp'] = adata_space.var.sparsity
     adata_map.uns['train_genes_df']['sparsity_diff'] = adata_space.var.sparsity - adata_cells.var.sparsity
 
-    adata_map.uns['training_history'] = pd.DataFrame(training_history)
+    adata_map.uns['training_history'] = training_history
 
     return adata_map
 
