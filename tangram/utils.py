@@ -304,8 +304,8 @@ def cross_val(ad_sc,
     print('cv train score {:.3f}'.format(avg_train_score))
 
     if experiment:
-        experiment.log_metric("avg test score", np.average(avg_test_score))
-        experiment.log_metric("avg train score", np.average(avg_train_score))
+        experiment.log_metric("avg test score", avg_test_score)
+        experiment.log_metric("avg train score", avg_train_score)
 
     if mode=='loo' and return_gene_pred:
 

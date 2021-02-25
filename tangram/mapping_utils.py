@@ -52,32 +52,32 @@ def pp_adatas(adata_1, adata_2, genes=None):
     return adata_1, adata_2
 
 
-def adata_to_cluster_expression(adata, label, scale=True, add_density=True):
+def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """
     Convert an AnnData to a new AnnData with cluster expressions. Clusters are based on `label` in `adata.obs`.  The returned AnnData has an observation for each cluster, with the cluster-level expression equals to the average expression for that cluster.
     All annotations in `adata.obs` except `label` are discarded in the returned AnnData.
     If `add_density`, the normalized number of cells in each cluster is added to the returned AnnData as obs.cluster_density.
     :param adata:
-    :param label: label for aggregating
+    :param cluster_label: cluster_label for aggregating
     """
     try:
-        value_counts = adata.obs[label].value_counts(normalize=True)
+        value_counts = adata.obs[cluster_label].value_counts(normalize=True)
     except KeyError as e:
         raise ValueError('Provided label must belong to adata.obs.')
     unique_labels = value_counts.index
-    new_obs = pd.DataFrame({label: unique_labels})
+    new_obs = pd.DataFrame({cluster_label: unique_labels})
     adata_ret = sc.AnnData(obs=new_obs, var=adata.var)
 
     X_new = np.empty((len(unique_labels), adata.shape[1]))
     for index, l in enumerate(unique_labels):
         if not scale:
-            X_new[index] = adata[adata.obs[label] == l].X.mean(axis=0)
+            X_new[index] = adata[adata.obs[cluster_label] == l].X.mean(axis=0)
         else:
-            X_new[index] = adata[adata.obs[label] == l].X.sum(axis=0)
+            X_new[index] = adata[adata.obs[cluster_label] == l].X.sum(axis=0)
     adata_ret.X = X_new
 
     if add_density:
-        adata_ret.obs['cluster_density'] = adata_ret.obs[label].map(lambda i: value_counts[i])
+        adata_ret.obs['cluster_density'] = adata_ret.obs[cluster_label].map(lambda i: value_counts[i])
 
     return adata_ret
 
