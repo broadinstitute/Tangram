@@ -1,7 +1,7 @@
 import scanpy as sc
 import tangram as tg
 import numpy as np
-
+import pandas as pd
 import pytest
 
 # to run test_tangram.py on your local machine, please set up as follow:
@@ -11,28 +11,51 @@ import pytest
 #      - check tangram version (conda list tangram), make sure it is the developing version
 # - make sure the test data are ready under test_data folder
 
-# mapping input data (anndata formated single cell data)
+# test data
 @pytest.fixture
 def ad_sc():
     ad_sc = sc.read_h5ad('test_data/test_ad_sc_readytomap.h5ad')
     return ad_sc
 
-# mapping input data (anndata formated spatial data)
+# test data
 @pytest.fixture
 def ad_sp():
     ad_sp = sc.read_h5ad('test_data/test_ad_sp_readytomap.h5ad')
     return ad_sp
 
+# test data
 @pytest.fixture
-def ad_sc_tutorial():
-    ad_sc_tutorial = sc.read_h5ad('test_data/test_ad_sc_readytomap_tutorial.h5ad')
-    return ad_sc_tutorial
+def ad_sc_mock():
+    X = np.array([[0,1,1],[0,1,1]])
+    obs = pd.DataFrame(index=['cell_1', 'cell_2'])
+    var = pd.DataFrame(index=['gene_a', 'gene_b', 'gene_d'])
+    ad_sc_mock = sc.AnnData(X=X,
+                            obs=obs,
+                            var=var)
+    return ad_sc_mock
 
-# mapping input data (anndata formated spatial data)
+# test data
 @pytest.fixture
-def ad_sp_tutorial():
-    ad_sp_tutorial = sc.read_h5ad('test_data/test_ad_sp_readytomap_tutorial.h5ad')
-    return ad_sp_tutorial
+def ad_sp_mock():
+    X = np.array([[1,1,1,1],[1,1,1,1]])
+    obs = pd.DataFrame(index=['voxel_1', 'voxel_2'])
+    var = pd.DataFrame(index=['gene_c', 'gene_b', 'gene_a', 'gene_d'])
+    ad_sp_mock = sc.AnnData(X=X,
+                            obs=obs,
+                            var=var)
+
+    return ad_sp_mock
+
+# test pp_data
+@pytest.mark.parametrize('genes', [
+    (None), 
+    (['gene_a', 'gene_b']),
+])
+def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
+    new_adata_1, new_adata_2 = tg.pp_adatas(ad_sc_mock, ad_sp_mock, genes)
+
+    assert new_adata_2.var.index.equals(new_adata_1.var.index)
+    assert new_adata_1.X.any(axis=0).all() and new_adata_2.X.any(axis=0).all()
 
 # test mapping function with different parameters
 @pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e', [
@@ -87,7 +110,6 @@ def test_invalid_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1
         assert e in str(exc_info.value)
 
 # test to see if the average training score matches between the one in training history and the one from compare_spatial_geneexp function
-# test mapping function with different parameters
 @pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale', [
     ('clusters', 'subclass', 1, 0, 0, True),
     ('clusters', 'subclass', 1, 0, 0, False),
@@ -97,7 +119,7 @@ def test_invalid_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1
     ('clusters', 'subclass', 1, 0, 1, False),
     # ('cells', None, 1, 0, 0, True), #this would take too long
 ])
-def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale):
+def test_train_score_match(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale):
     
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
@@ -125,50 +147,6 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
     # assert avg_score_df == avg_score_train_hist
     assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
 
-
-# test to see if the average training score matches between the one in training history and the one from compare_spatial_geneexp function
-# test mapping function with different parameters
-@pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale', [
-    ('clusters', 'subclass_label', 1, 0, 0, True),
-    ('clusters', 'subclass_label', 1, 0, 0, False),
-    ('clusters', 'subclass_label', 1, 1, 0, True),
-    ('clusters', 'subclass_label', 1, 1, 0, False),
-    ('clusters', 'subclass_label', 1, 0, 1, True),
-    ('clusters', 'subclass_label', 1, 0, 1, False),
-    # ('cells', None, 1, 0, 0, True), #this would take too long
-])
-def test_map_cells_to_space(ad_sc_tutorial, ad_sp_tutorial, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale):
-    
-    # mapping with defined random_state
-    ad_map = tg.map_cells_to_space(
-                    adata_cells=ad_sc_tutorial,
-                    adata_space=ad_sp_tutorial,
-                    device='cpu',
-                    mode=mode,
-                    cluster_label=cluster_label,
-                    lambda_g1=lambda_g1,
-                    lambda_g2=lambda_g2,
-                    lambda_d=lambda_d,
-                    scale=scale,
-                    random_state=42,
-                    num_epochs=500,
-                    verbose=False)
-
-    # call project_genes to project input ad_sc data to ad_ge spatial data with ad_map
-    ad_ge = tg.project_genes(adata_map=ad_map, adata_sc=ad_sc_tutorial, cluster_label=cluster_label, scale=scale)
-    df_all_genes = tg.compare_spatial_geneexp(ad_ge, ad_sp_tutorial)
-    
-    avg_score_df = df_all_genes['score'].mean()
-    avg_score_train_hist = list(ad_map.uns['training_history']['main_loss'])[-1]
-
-    # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
-    # assert avg_score_df == avg_score_train_hist
-    assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
-
-
-# test case for slide-seq datasets (score match)
-# test case for check write ad_map
-# test case for cross validation score - not nan
 
 
 

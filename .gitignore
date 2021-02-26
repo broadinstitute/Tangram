@@ -17,8 +17,6 @@ __pycache__
 # except for test datasets
 !test_ad_sc_readytomap.h5ad
 !test_ad_sp_readytomap.h5ad
-!test_ad_sc_readytomap_tutorial.h5ad
-!test_ad_sp_readytomap_tutorial.h5ad
 example/data/ 
 
 # Distribution / packaging

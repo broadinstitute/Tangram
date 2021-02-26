@@ -221,6 +221,7 @@ def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
     df = pd.concat([gene_test_score_df['test_score'], ad_sc.var['sparsity'], ad_sp.var['sparsity'], (ad_sp.var['sparsity'] - ad_sc.var['sparsity'])], axis=1)
     df.columns = ['test_score', 'sparsity_sc', 'sparsity_sp', 'sparsity_diff']
     
+    sns.set_palette("flare")
     fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
     axs_f = axs.flatten()
     
@@ -237,3 +238,35 @@ def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
     sns.scatterplot(data=df, y='test_score', x='sparsity_diff', ax=axs_f[3], alpha=alpha)
     
     plt.tight_layout()
+
+
+def quick_plot_gene_compare(genes, ad_ge, ad_sp, x='x', y='y', s=50, log=False):
+    """
+    Utility function to quickly plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
+    Args:
+        genes (list of str): list of gene names.
+        ad_ge (AnnData structure): projected gene spatial AnnData, can also be ad_ge_cv AnnData returned by cross_validation under 'loo' mode
+        x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
+        y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
+        log: Optional. Whether to apply the log before plotting. Default is False.
+    """
+    fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes)*3))
+    for ix, gene in enumerate(genes):
+            xs, ys, vs = ordered_predictions(ad_sp.obs[x], 
+                                             ad_sp.obs[y], 
+                                             np.array(ad_sp[:, gene].X).flatten())
+            if log:
+                vs = np.log(1+np.asarray(vs))
+            axs[ix, 0].scatter(xs, ys, c=vs, cmap='viridis', s=s)
+            axs[ix, 0].set_title(gene + ' (actual)')
+            axs[ix, 0].axis('off')
+
+            xs, ys, vs = ordered_predictions(ad_ge.obs[x], 
+                                             ad_ge.obs[y], 
+                                             np.array(ad_ge[:, gene].X).flatten())
+            test_score = ad_ge.var.loc[gene]['test_score']
+            if log:
+                vs = np.log(1+np.asarray(vs))
+            axs[ix, 1].scatter(xs, ys, c=vs, cmap='viridis', s=s)
+            axs[ix, 1].set_title('{} (predicted)  score={:.3f}'.format(gene, test_score))
+            axs[ix, 1].axis('off')

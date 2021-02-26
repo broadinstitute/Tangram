@@ -90,14 +90,8 @@ class Mapper:
             density_term = None
 
         G_pred = torch.matmul(M_probs.t(), self.S)
-        # gv_term = self.lambda_g1 * cosine_similarity(G_pred, self.G, dim=0).mean()
-        # vg_term = self.lambda_g2 * cosine_similarity(G_pred, self.G, dim=1).mean()
-
-        # remove zerors
-        gv_nonzero_mask = [cosine_similarity(G_pred, self.G, dim=0)!=0.]
-        vg_nonzero_mask = [cosine_similarity(G_pred, self.G, dim=1)!=0.]
-        gv_term = self.lambda_g1 * cosine_similarity(G_pred, self.G, dim=0)[gv_nonzero_mask].mean()
-        vg_term = self.lambda_g2 * cosine_similarity(G_pred, self.G, dim=1)[vg_nonzero_mask].mean()
+        gv_term = self.lambda_g1 * cosine_similarity(G_pred, self.G, dim=0).mean()
+        vg_term = self.lambda_g2 * cosine_similarity(G_pred, self.G, dim=1).mean()
 
         expression_term = gv_term + vg_term
 

@@ -18,9 +18,35 @@ from . import utils as ut
 
 logging.getLogger().setLevel(logging.INFO)
 
+def clean_zero_gene(adata):
+    """
+    This function removes genes in adata that all entries are zero and convert sparse matrix to array
+    Args:
+        adata: AnnData Object
+    Return:
+        cleaned_adata: AnnData Object
+    """
+
+    if isinstance(adata.X, csc_matrix) or isinstance(adata.X, csr_matrix):
+        adata.X = np.array(adata.X.toarray(), dtype='float64')
+    elif isinstance(adata.X, np.ndarray):
+        adata.X = np.array(adata.X, dtype='float64')
+    else:
+        X_type = type(adata.X)
+        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
+        raise NotImplementedError
+
+    zero_col_idx = list(np.where(~adata.X.any(axis=0))[0])
+
+    genes = adata.var.index.values
+    cleaned_genes = [g for idx, g in enumerate(genes) if idx not in zero_col_idx]
+    adata = adata[:, cleaned_genes]
+    return adata
+
 def pp_adatas(adata_1, adata_2, genes=None):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
+    - Remove genes that all entries are zero
     - Subset the AnnDatas to `genes` (non-shared genes are removed).
     - Re-order genes in `adata_2` so that they are consistent with those in `adata_1`.
     :param adata_1:
@@ -33,7 +59,11 @@ def pp_adatas(adata_1, adata_2, genes=None):
     adata_2 = adata_2.copy()
     adata_1.var_names_make_unique()
     adata_2.var_names_make_unique()
-    
+
+    # remove all-zero-valued genes
+    adata_1 = clean_zero_gene(adata_1)
+    adata_2 = clean_zero_gene(adata_2)
+
     if genes is None:
         # Use all genes
         genes = adata_1.var.index.values
@@ -105,8 +135,11 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
     if adata_cells.var.index.equals(adata_space.var.index) is False:
-        logging.error('Incompatible AnnDatas. Run `pp_adatas().')
+        logging.error('Incompatible AnnDatas. Run `pp_adatas()`.')
         raise ValueError
+
+    if not adata_cells.X.any(axis=0).all() or not adata_space.X.any(axis=0).all():
+        raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
     
     if mode == 'clusters' and cluster_label is None:
         raise ValueError('A cluster_label must be specified if mode = clusters.')
@@ -170,7 +203,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     #     raise NotImplementedError
 
     # Train Tangram
-    logging.info('Begin training with {} mode...'.format(mode))
+    logging.info('Begin training with {} genes in {} mode...'.format(len(adata_cells.var.index), mode))
     mapper = mo.Mapper(
         S=S, G=G, d=d, device=device, adata_map=adata_map,
         random_state=random_state,
