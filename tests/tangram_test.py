@@ -84,7 +84,7 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     verbose=False)
 
     # check if first element of output_admap.X is equal to expected value
-    assert ad_map.X[0,0] == e
+    assert round(ad_map.X[0,0], 5) == round(e, 5)
 
 # test mapping exception with assertion
 @pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e', [
