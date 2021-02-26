@@ -1,6 +1,18 @@
 name: Tangram QA
 
-on: [push]
+on: 
+  push:
+    branches:
+      - master
+      - main
+      - ziq
+      - dev
+  pull_request:
+    branches:
+      - master
+      - main
+      - ziq
+      - dev
 
 jobs:
   test:

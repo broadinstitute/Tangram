@@ -14,6 +14,8 @@ from comet_ml import Experiment
 
 from . import mapping_utils as mu
 
+# import torch
+# from torch.nn.functional import cosine_similarity
 
 def read_pickle(filename):
     """
@@ -162,6 +164,14 @@ def compare_spatial_geneexp(adata_space_1, adata_space_2):
     for v1, v2 in zip(X_1.T, X_2.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
+
+    # cos_sims = []
+    # for v1, v2 in zip(X_1.T, X_2.T):
+    #     v1_tensor = torch.tensor(v1)
+    #     v2_tensor = torch.tensor(v2)
+    #     cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
+    #     cos_sims.append(cos_sim)
+
     genes = list(np.reshape(adata_space_1.var.index.values, (-1,)))
     df_g = pd.DataFrame(cos_sims, genes, columns=['score'])
     for adata in [adata_space_1, adata_space_2]:
@@ -208,7 +218,9 @@ def cross_val(ad_sc,
               learning_rate=0.1,
               mode='loo',
               return_gene_pred=False,
-              experiment=None
+              experiment=None,
+              random_state=None, 
+              verbose=False
               ):
     """ This function executes cross validation
 
@@ -228,6 +240,7 @@ def cross_val(ad_sc,
         cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
         (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
+
     test_genes_list = []
     test_pred_list = []
     test_score_list = []
@@ -247,7 +260,9 @@ def cross_val(ad_sc,
             lambda_d=lambda_d,
             lambda_g1=lambda_g1,
             lambda_g2=lambda_g2,
-            lambda_r=lambda_r
+            lambda_r=lambda_r,
+            random_state=random_state,
+            verbose=verbose,
         )
 
         # project on space
@@ -268,15 +283,16 @@ def cross_val(ad_sc,
         test_score_list.append(test_score)
         train_score_list.append(train_score)
         print(
-            "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score))
+            "cv set: {}----train score: {:.3f}----test score: {:.3f}\n".format(curr_cv_set, train_score, test_score))
         if experiment:
             experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
             experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)
 
         curr_cv_set += 1
 
-    avg_test_score = np.mean(test_score_list)
-    avg_train_score = np.mean(train_score_list)
+    # use nanmean to ignore nan in score list
+    avg_test_score = np.nanmean(test_score_list)
+    avg_train_score = np.nanmean(train_score_list)
 
     cv_dict = {'mode': mode,
                'weighting': scale,
@@ -288,8 +304,8 @@ def cross_val(ad_sc,
     print('cv train score {:.3f}'.format(avg_train_score))
 
     if experiment:
-        experiment.log_metric("avg test score", np.average(avg_test_score))
-        experiment.log_metric("avg train score", np.average(avg_train_score))
+        experiment.log_metric("avg test score", avg_test_score)
+        experiment.log_metric("avg train score", avg_train_score)
 
     if mode=='loo' and return_gene_pred:
 
