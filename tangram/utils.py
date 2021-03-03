@@ -248,6 +248,8 @@ def cross_val(ad_sc,
 
     if verbose==False:
         logging.getLogger.disabled=True
+        logger_ann = logging.getLogger("anndata")
+        logger_ann.disabled = True
 
     test_genes_list = []
     test_pred_list = []
