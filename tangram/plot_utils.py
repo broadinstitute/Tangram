@@ -17,7 +17,7 @@ import pandas as pd
 
 import logging
 
-def min_max(data, perc):
+def q_value(data, perc):
     """
     This function produces min and max values according to percentile for color map in plot functions
     Args:

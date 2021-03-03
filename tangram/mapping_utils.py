@@ -17,6 +17,8 @@ from . import utils as ut
 # from torch.nn.functional import cosine_similarity
 
 logging.getLogger().setLevel(logging.INFO)
+logger_ann = logging.getLogger("anndata")
+logger_ann.disabled = True
 
 def clean_zero_gene(adata):
     """

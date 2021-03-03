@@ -21,6 +21,8 @@ import warnings
 # from torch.nn.functional import cosine_similarity
 
 warnings.filterwarnings('ignore')
+logger_ann = logging.getLogger("anndata")
+logger_ann.disabled = True
 
 def read_pickle(filename):
     """
