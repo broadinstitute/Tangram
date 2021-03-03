@@ -1,18 +1,8 @@
-name: Tangram QA
+name: CI
 
 on: 
-  push:
-    branches:
-      - master
-      - main
-      - ziq
-      - dev
+  workflow_dispatch:
   pull_request:
-    branches:
-      - master
-      - main
-      - ziq
-      - dev
 
 jobs:
   test:
@@ -21,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: set up python 3.8
+      - name: set up python 3.8.5
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.8.5
       
       - name: set up conda environment
         uses: conda-incubator/setup-miniconda@v2

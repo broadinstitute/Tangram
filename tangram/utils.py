@@ -14,8 +14,13 @@ from comet_ml import Experiment
 
 from . import mapping_utils as mu
 
+import logging
+import warnings
+
 # import torch
 # from torch.nn.functional import cosine_similarity
+
+warnings.filterwarnings('ignore')
 
 def read_pickle(filename):
     """
@@ -241,6 +246,9 @@ def cross_val(ad_sc,
         (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
 
+    if verbose==False:
+        logging.getLogger.disabled=True
+
     test_genes_list = []
     test_pred_list = []
     test_score_list = []
@@ -282,8 +290,11 @@ def cross_val(ad_sc,
         test_genes_list.append(test_genes)
         test_score_list.append(test_score)
         train_score_list.append(train_score)
-        print(
-            "cv set: {}----train score: {:.3f}----test score: {:.3f}\n".format(curr_cv_set, train_score, test_score))
+
+        logging.info(
+            "cv set: {}----train score: {:.3f}----test score: {:.3f}\n".format(curr_cv_set, train_score, test_score)
+        )
+
         if experiment:
             experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
             experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)

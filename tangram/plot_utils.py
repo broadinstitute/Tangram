@@ -15,6 +15,19 @@ from . import mapping_utils as mu
 
 import pandas as pd
 
+import logging
+
+def min_max(data, perc):
+    """
+    This function produces min and max values according to percentile for color map in plot functions
+    Args:
+        data: numpy array
+        perc: percentile
+    """
+    vmin = np.nanpercentile(data, perc)
+    vmax = np.nanpercentile(data, 100-perc)
+    
+    return vmin, vmax
 
 def plot_training_scores(adata_map, bins='auto', alpha=.7):
     """
@@ -76,17 +89,30 @@ def ordered_predictions(xs, ys, preds, reverse=False):
 
 def plot_cell_annotation(adata_map, annotation='cell_type', 
                          x='x', y='y', nrows=None, ncols=None,
-                         marker_size=5, cmap='viridis', suptitle_add=False):
+                         s=5, cmap='viridis', suptitle_add=False,
+                         robust=False,
+                         perc=0.001,
+                         ):
     """
         Transfer an annotation for a single cell dataset onto space, and visualize
         corresponding spatial probability maps.
-        `adata_map`: cell-by-spot-AnnData containing mapping result
-        `annotation`: Must be a column in `adata_map.obs`.
-        `x`: column name for spots x-coordinates (must be in `adata_map.var`)
-        `y`: column name for spots y-coordinates (must be in `adata_map.var`)
+        Args:
+            adata_map: cell-by-spot-AnnData containing mapping result
+            annotation: Must be a column in `adata_map.obs`.
+            x: column name for spots x-coordinates (must be in `adata_map.var`)
+            y: column name for spots y-coordinates (must be in `adata_map.var`)
+            robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
+            perc: float, percentile used to calculate colormap range
+            s: optional, marker size
     """
 
     # TODO ADD CHECKS for x and y
+
+    if not robust and perc != 0:
+      raise ValueError('Arg perc is zero when robust is False.')
+
+    if robust and perc == 0:
+      raise ValueError('Arg perc cannot be zero when robust is True.')
     
     df_annotation = ut.project_cell_annotations(adata_map, annotation=annotation)
 
@@ -109,7 +135,13 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
         xs, ys, preds = ordered_predictions(adata_map.var[x], 
                                             adata_map.var[y], 
                                             df_annotation[ann])
-        axs_f[index].scatter(x=xs, y=ys, c=preds, s=marker_size, cmap=cmap)
+
+        if robust:
+          vmin, vmax = q_value(preds, perc=perc)
+        else:
+          vmin, vmax = q_value(preds, perc=0)
+
+        axs_f[index].scatter(x=xs, y=ys, c=preds, s=s, cmap=cmap, vmin=vmin, vmax=vmax)
 #         axs_f[index].axis('off')
         axs_f[index].set_aspect(1)
         axs_f[index].set_title(ann)
@@ -118,11 +150,32 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
         fig.suptitle(annotation)
 
 
-def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False):
+def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False, 
+               cmap='viridis',
+               robust=False,
+               perc=0,
+               ):
     """
-
+    Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
+    Args:
+        genes (list of str): list of gene names.
+        ad_measured (AnnData structure): ground truth gene spatial AnnData
+        ad_predicted (AnnData structure): projected gene spatial AnnData, can also be ad_ge_cv AnnData returned by cross_validation under 'loo' mode
+        x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
+        y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
+        s: Optional. Size of the markder
+        log: Optional. Whether to apply the log before plotting. Default is False.
+        robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
+        perc: float, percentile used to calculate colormap range
     """
     # TODO: not very elegant and slow as hell
+
+    if not robust and perc != 0:
+      raise ValueError('Arg perc is zero when robust is False.')
+
+    if robust and perc == 0:
+      raise ValueError('Arg perc cannot be zero when robust is True.')
+
     if isinstance(adata_measured.X, csc_matrix) or isinstance(adata_measured.X, csr_matrix):
         adata_measured.X = adata_measured.X.toarray()
     
@@ -133,21 +186,27 @@ def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=Fa
                                          np.array(adata_measured[:, gene].X).flatten())
         if log:
             vs = np.log(1+np.asarray(vs))
-        axs[ix, 0].scatter(xs, ys, c=vs, cmap='inferno', s=s)
+        axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
         axs[ix, 0].set_title(gene + ' (measured)')
         axs[ix, 0].axis('off')
         
         xs, ys, vs = ordered_predictions(adata_predicted.obs[x], 
                                          adata_predicted.obs[y], 
                                          np.array(adata_predicted[:, gene].X).flatten())
+
+        if robust:
+          vmin, vmax = q_value(vs, perc=perc)
+        else:
+          vmin, vmax = q_value(vs, perc=0)
+
         if log:
             vs = np.log(1+np.asarray(vs))
-        axs[ix, 1].scatter(xs, ys, c=vs, cmap='inferno', s=s)
+        axs[ix, 1].scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
         axs[ix, 1].set_title(gene + ' (predicted)')
         axs[ix, 1].axis('off')
     
     
-def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False):
+def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False, cmap='viridis', robust=False, perc=0):
     """
     Utility function to quickly plot a gene in a AnnData structure ordered by intensity of the gene signal.
     Args:
@@ -156,11 +215,24 @@ def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False):
         x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
         y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
         log: Optional. Whether to apply the log before plotting. Default is False.
+        s: Optional. Size of the markder
+        robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
+        perc: float, percentile used to calculate colormap range
     """
+    if not robust and perc != 0:
+      raise ValueError('Arg perc is zero when robust is False.')
+
+    if robust and perc == 0:
+      raise ValueError('Arg perc cannot be zero when robust is True.')
+
     xs, ys, vs = ordered_predictions(adata.obs[x], adata.obs[y], np.array(adata[:, gene].X).flatten())
+    if robust:
+        vmin, vmax = q_value(vs, perc=perc)
+    else:
+        vmin, vmax = q_value(vs, perc=0)
     if log:
         vs = np.log(1+np.asarray(vs))
-    plt.scatter(xs, ys, c=vs, cmap='viridis', s=s)
+    plt.scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
 
 
 def plot_annotation_entropy(adata_map, annotation='cell_type'):
@@ -221,7 +293,6 @@ def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
     df = pd.concat([gene_test_score_df['test_score'], ad_sc.var['sparsity'], ad_sp.var['sparsity'], (ad_sp.var['sparsity'] - ad_sc.var['sparsity'])], axis=1)
     df.columns = ['test_score', 'sparsity_sc', 'sparsity_sp', 'sparsity_diff']
     
-    sns.set_palette("flare")
     fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
     axs_f = axs.flatten()
     
@@ -240,33 +311,3 @@ def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
     plt.tight_layout()
 
 
-def quick_plot_gene_compare(genes, ad_ge, ad_sp, x='x', y='y', s=50, log=False):
-    """
-    Utility function to quickly plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
-    Args:
-        genes (list of str): list of gene names.
-        ad_ge (AnnData structure): projected gene spatial AnnData, can also be ad_ge_cv AnnData returned by cross_validation under 'loo' mode
-        x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
-        y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
-        log: Optional. Whether to apply the log before plotting. Default is False.
-    """
-    fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes)*3))
-    for ix, gene in enumerate(genes):
-            xs, ys, vs = ordered_predictions(ad_sp.obs[x], 
-                                             ad_sp.obs[y], 
-                                             np.array(ad_sp[:, gene].X).flatten())
-            if log:
-                vs = np.log(1+np.asarray(vs))
-            axs[ix, 0].scatter(xs, ys, c=vs, cmap='viridis', s=s)
-            axs[ix, 0].set_title(gene + ' (actual)')
-            axs[ix, 0].axis('off')
-
-            xs, ys, vs = ordered_predictions(ad_ge.obs[x], 
-                                             ad_ge.obs[y], 
-                                             np.array(ad_ge[:, gene].X).flatten())
-            test_score = ad_ge.var.loc[gene]['test_score']
-            if log:
-                vs = np.log(1+np.asarray(vs))
-            axs[ix, 1].scatter(xs, ys, c=vs, cmap='viridis', s=s)
-            axs[ix, 1].set_title('{} (predicted)  score={:.3f}'.format(gene, test_score))
-            axs[ix, 1].axis('off')
