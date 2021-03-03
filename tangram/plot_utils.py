@@ -91,7 +91,7 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
                          x='x', y='y', nrows=None, ncols=None,
                          s=5, cmap='viridis', suptitle_add=False,
                          robust=False,
-                         perc=0.001,
+                         perc=0,
                          ):
     """
         Transfer an annotation for a single cell dataset onto space, and visualize
