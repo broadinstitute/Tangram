@@ -18,31 +18,6 @@ from . import utils as ut
 
 logging.getLogger().setLevel(logging.INFO)
 
-def clean_zero_gene(adata):
-    """
-    This function removes genes in adata that all entries are zero and convert sparse matrix to array
-    Args:
-        adata: AnnData Object
-    Return:
-        cleaned_adata: AnnData Object
-    """
-
-    if isinstance(adata.X, csc_matrix) or isinstance(adata.X, csr_matrix):
-        adata.X = np.array(adata.X.toarray(), dtype='float64')
-    elif isinstance(adata.X, np.ndarray):
-        adata.X = np.array(adata.X, dtype='float64')
-    else:
-        X_type = type(adata.X)
-        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
-        raise NotImplementedError
-
-    zero_col_idx = list(np.where(~adata.X.any(axis=0))[0])
-
-    genes = adata.var.index.values
-    cleaned_genes = [g for idx, g in enumerate(genes) if idx not in zero_col_idx]
-    adata = adata[:, cleaned_genes]
-    return adata
-
 def pp_adatas(adata_1, adata_2, genes=None):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
@@ -61,8 +36,8 @@ def pp_adatas(adata_1, adata_2, genes=None):
     adata_2.var_names_make_unique()
 
     # remove all-zero-valued genes
-    adata_1 = clean_zero_gene(adata_1)
-    adata_2 = clean_zero_gene(adata_2)
+    sc.pp.filter_genes(adata_1, min_cells=1)
+    sc.pp.filter_genes(adata_2, min_cells=1)
 
     if genes is None:
         # Use all genes
@@ -137,9 +112,6 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     if adata_cells.var.index.equals(adata_space.var.index) is False:
         logging.error('Incompatible AnnDatas. Run `pp_adatas()`.')
         raise ValueError
-
-    if not adata_cells.X.any(axis=0).all() or not adata_space.X.any(axis=0).all():
-        raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
     
     if mode == 'clusters' and cluster_label is None:
         raise ValueError('A cluster_label must be specified if mode = clusters.')
@@ -150,21 +122,24 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     logging.info('Allocate tensors for mapping.')
     # Allocate tensors (AnnData matrix can be sparse or not)
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells.X.toarray(), dtype='float64')
+        S = np.array(adata_cells.X.toarray(), dtype='float32')
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells.X, dtype='float64')
+        S = np.array(adata_cells.X, dtype='float32')
     else:
         X_type = type(adata_cells.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space.X.toarray(), dtype='float64')
+        G = np.array(adata_space.X.toarray(), dtype='float32')
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space.X, dtype='float64')
+        G = np.array(adata_space.X, dtype='float32')
     else:
         X_type = type(adata_space.X)
         logging.error('AnnData X has unrecognized type: {}'.format(X_type))
         raise NotImplementedError
+
+    if not S.any(axis=0).all() or not G.any(axis=0).all():
+        raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
 
     if mode == 'cells':
         d = None

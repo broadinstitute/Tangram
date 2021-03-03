@@ -102,7 +102,7 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
             x: column name for spots x-coordinates (must be in `adata_map.var`)
             y: column name for spots y-coordinates (must be in `adata_map.var`)
             robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-            perc: float, percentile used to calculate colormap range
+            perc: float, percentile used to calculate colormap range, only used when robust is True
             s: optional, marker size
     """
 
@@ -166,7 +166,7 @@ def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=Fa
         s: Optional. Size of the markder
         log: Optional. Whether to apply the log before plotting. Default is False.
         robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-        perc: float, percentile used to calculate colormap range
+        perc: float, percentile used to calculate colormap range, only used when robust is True
     """
     # TODO: not very elegant and slow as hell
 
@@ -217,7 +217,7 @@ def quick_plot_gene(gene, adata, x='x', y='y', s=50, log=False, cmap='viridis', 
         log: Optional. Whether to apply the log before plotting. Default is False.
         s: Optional. Size of the markder
         robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-        perc: float, percentile used to calculate colormap range
+        perc: float, percentile used to calculate colormap range, only used when robust is True
     """
     if not robust and perc != 0:
       raise ValueError('Arg perc is zero when robust is False.')
@@ -267,7 +267,6 @@ mapping_colors = {'L6 CT': (0.19215686274509805, 0.5098039215686274, 0.741176470
                   'Peri': (0.6784313725490196, 0.28627450980392155, 0.2901960784313726),
                   'VLMC': (0.8392156862745098, 0.3803921568627451, 0.4196078431372549),
                   'Endo': (0.9058823529411765, 0.5882352941176471, 0.611764705882353),
-                  'Meis2': '#FFA500ff',
                   'Meis2': '#FFA500ff',
                   'SMC': '#000000ff',
                   'L6 PT': '#4682B4ff',
