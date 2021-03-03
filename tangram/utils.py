@@ -249,7 +249,8 @@ def cross_val(ad_sc,
     """
 
     if verbose==False:
-        logging.getLogger.disabled=True
+        logger_root = logging.getLogger()
+        logger_root.disabled=True
         logger_ann = logging.getLogger("anndata")
         logger_ann.disabled = True
 
