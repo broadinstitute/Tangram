@@ -38,17 +38,17 @@ def plot_training_scores(adata_map, bins='auto', alpha=.7):
     axs_f = axs.flatten()
     
 #     axs_f[0].set_title('Training scores for single genes')
-    sns.histplot(data=df, y='train_score', bins=10, ax=axs_f[0]);
+    sns.histplot(data=df, y='train_score', bins=10, ax=axs_f[0],  color='coral');
 
     axs_f[1].set_title('score vs sparsity (single cells)')
-    sns.scatterplot(data=df, y='train_score', x='sparsity_sc', ax=axs_f[1], alpha=alpha)
+    sns.scatterplot(data=df, y='train_score', x='sparsity_sc', ax=axs_f[1], alpha=alpha,  color='coral')
 #     sns.distplot(data=df, x='train_score', bins=bins, ax=axs_f[0]);
     
     axs_f[2].set_title('score vs sparsity (spatial)')
-    sns.scatterplot(data=df, y='train_score', x='sparsity_sp', ax=axs_f[2], alpha=alpha)
+    sns.scatterplot(data=df, y='train_score', x='sparsity_sp', ax=axs_f[2], alpha=alpha,  color='coral')
     
     axs_f[3].set_title('score vs sparsity (sp - sc)')
-    sns.scatterplot(data=df, y='train_score', x='sparsity_diff', ax=axs_f[3], alpha=alpha)
+    sns.scatterplot(data=df, y='train_score', x='sparsity_diff', ax=axs_f[3], alpha=alpha,  color='coral')
     
     plt.tight_layout()
 
