@@ -215,7 +215,7 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
 def cross_val(ad_sc,
               ad_sp,
               cluster_label=None,
-              mapping_mode='Clusters',
+              mapping_mode='clusters',
               scale=True,
               lambda_d=0,
               lambda_g1=1,
