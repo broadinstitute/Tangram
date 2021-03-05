@@ -194,6 +194,9 @@ def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=Fa
     if isinstance(adata_measured.X, csc_matrix) or isinstance(adata_measured.X, csr_matrix):
         adata_measured.X = adata_measured.X.toarray()
 
+    adata_measured.var.index = [g.lower() for g in adata_measured.var.index]
+    adata_predicted.var.index = [g.lower() for g in adata_predicted.var.index]
+
     #### Colorbar:
     fig, ax = plt.subplots(figsize=(4, 0.4))
     fig.subplots_adjust(top=0.5)
