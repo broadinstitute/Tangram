@@ -32,6 +32,11 @@ def pp_adatas(adata_1, adata_2, genes=None):
     """
     adata_1 = adata_1.copy()
     adata_2 = adata_2.copy()
+    
+    # put all var index to lower case to align
+    adata_1.var.index = [g.lower() for g in adata_1.var.index]
+    adata_2.var.index = [g.lower() for g in adata_2.var.index]
+
     adata_1.var_names_make_unique()
     adata_2.var_names_make_unique()
 
