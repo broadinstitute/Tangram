@@ -17,6 +17,8 @@ import pandas as pd
 
 import logging
 
+import matplotlib as mpl
+
 def q_value(data, perc):
     """
     This function produces min and max values according to percentile for color map in plot functions
@@ -115,6 +117,19 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
       raise ValueError('Arg perc cannot be zero when robust is True.')
     
     df_annotation = ut.project_cell_annotations(adata_map, annotation=annotation)
+    
+    #### Colorbar:
+    fig, ax = plt.subplots(figsize=(4, 0.4))
+    fig.subplots_adjust(top=0.5)
+
+    cmap = plt.get_cmap(cmap)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1, )
+
+    cb1 = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                    norm=norm,
+                                    orientation='horizontal',
+                                    label='Probability')
+    #### Colorbar
 
     if nrows is None or ncols is None:
         ncols = 1
@@ -151,7 +166,7 @@ def plot_cell_annotation(adata_map, annotation='cell_type',
 
 
 def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=False, 
-               cmap='viridis',
+               cmap='inferno',
                robust=False,
                perc=0,
                ):
@@ -178,6 +193,19 @@ def plot_genes(genes, adata_measured, adata_predicted, x='x', y='y', s=5, log=Fa
 
     if isinstance(adata_measured.X, csc_matrix) or isinstance(adata_measured.X, csr_matrix):
         adata_measured.X = adata_measured.X.toarray()
+
+    #### Colorbar:
+    fig, ax = plt.subplots(figsize=(4, 0.4))
+    fig.subplots_adjust(top=0.5)
+
+    cmap = plt.get_cmap(cmap)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1, )
+
+    cb1 = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                    norm=norm,
+                                    orientation='horizontal',
+                                    label='Expression Level')
+    #### Colorbar
     
     fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes)*3))
     for ix, gene in enumerate(genes):
