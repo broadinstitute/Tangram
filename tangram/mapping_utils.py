@@ -46,9 +46,9 @@ def pp_adatas(adata_1, adata_2, genes=None):
 
     if genes is None:
         # Use all genes
-        genes = adata_1.var.index.values
+        genes = [g.lower() for g in adata_1.var.index]
     else:
-        genes = list(genes)
+        genes = list(g.lower() for g in genes)
     
     # Refine `marker_genes` so that they are shared by both adatas
     genes = list(set(genes) & set(adata_1.var.index) & set(adata_2.var.index))
