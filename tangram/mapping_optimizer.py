@@ -103,26 +103,15 @@ class Mapper:
 
         if verbose:
 
-            if not np.isnan(kl_reg) and not np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, kl_reg, vg_reg
-                )
+            term_numbers = [round(main_loss, 3), round(l_reg, 3), round(vg_reg, 3), round(regularizer_term, 3)]
+            term_names = ['Score', 'KL reg', 'VG reg', 'Entropy reg']
 
-            elif np.isnan(kl_reg) and np.isnan(vg_reg):
-                msg = 'Score: {:.3f}'.format(
-                    main_loss
-                )
-
-            elif np.isnan(kl_reg):
-                msg = 'Score: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, vg_reg
-                )
-
-            elif np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}'.format(
-                    main_loss, kl_reg
-                )
-
+            for i in range(len(term_numbers)):
+                if np.isnan(term_numbers[i]):
+                    del term_numbers[i]
+                    del term_names[i]
+                
+            msg = str(dict(zip(term_names, term_numbers))).replace("'", "").replace("{","").replace("}", "")
             print(msg)
 
         total_loss = - expression_term - regularizer_term
