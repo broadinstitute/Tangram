@@ -117,7 +117,7 @@ class Mapper:
                 m = '{}: {:.3f}'.format(k, clean_dict[k])
                 msg.append(m)
 
-            print(str(msg).replace("{", "").replace("}", "").replace("'",""))
+            print(str(msg).replace("[", "").replace("]", "").replace("'",""))
 
         total_loss = - expression_term - regularizer_term
         if density_term is not None:
