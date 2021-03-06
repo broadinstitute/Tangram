@@ -105,7 +105,7 @@ class Mapper:
 
         if verbose:
 
-            term_numbers = [round(main_loss, 3), round(l_reg, 3), round(vg_reg, 3), round(regularizer_term, 3)]
+            term_numbers = [round(main_loss, 3), round(kl_reg, 3), round(vg_reg, 3), round(regularizer_term, 3)]
             term_names = ['Score', 'KL reg', 'VG reg', 'Entropy reg']
 
             for i in range(len(term_numbers)):
