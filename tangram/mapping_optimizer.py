@@ -11,6 +11,8 @@ import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
 
+from comet_ml import Experiment
+
 
 class Mapper:
     """
@@ -118,9 +120,9 @@ class Mapper:
         if density_term is not None:
             total_loss = total_loss + density_term
 
-        return total_loss, main_loss, vg_reg, kl_reg
+        return total_loss, main_loss, vg_reg, kl_reg, regularizer_term
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
         """
         Run the optimizer and returns the mapping outcome.
         Args:
@@ -137,8 +139,8 @@ class Mapper:
         if print_each:
             logging.info(f'Printing scores every {print_each} epochs.')
 
-        keys = ['total_loss', 'main_loss', 'vg_reg', 'gv_reg']
-        values = [[] for i in range(4)]
+        keys = ['total_loss', 'main_loss', 'vg_reg', 'gv_reg', 'entropy_reg']
+        values = [[] for i in range(len(keys))]
         training_history = {key:value for key, value in zip(keys, values)}
         for t in range(num_epochs):
             if print_each is None or t % print_each != 0:
@@ -150,6 +152,7 @@ class Mapper:
             training_history['main_loss'].append(np.float64(run_loss[1]))
             training_history['vg_reg'].append(np.float64(run_loss[2]))
             training_history['gv_reg'].append(np.float64(run_loss[3]))
+            training_history['entropy_reg'].append(np.float64(run_loss[4]))
 
             optimizer.zero_grad()
             loss.backward()

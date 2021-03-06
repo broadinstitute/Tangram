@@ -94,7 +94,8 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
                        device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
                        cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
-                       random_state=None, verbose=True):
+                       random_state=None, verbose=True, experiment=None,
+                       ):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -105,6 +106,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
         :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+        :param experiment: experiment object in comet-ml for logging training in comet-ml
     """
 
     # check invalid values for arguments
@@ -199,6 +201,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
             learning_rate=learning_rate,
             num_epochs=num_epochs,
             print_each=print_each,
+            experiment=experiment,
     )
 
     logging.info('Saving results..')

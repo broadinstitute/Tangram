@@ -131,6 +131,17 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
+    
+    adata_sc = adata_sc.copy()
+    
+    # put all var index to lower case to align
+    adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
+
+    adata_sc.var_names_make_unique()
+
+    # remove all-zero-valued genes
+    sc.pp.filter_genes(adata_sc, min_cells=1)
+
     if cluster_label:
         adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
 
@@ -243,7 +254,7 @@ def cross_val(ad_sc,
         scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
         mode: string, cross validation mode, 'loo' and 'kfold' supported
         return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
-        experiment: bool, experiment object in comet-ml for logging training in comet-ml
+        experiment: experiment object in comet-ml for logging training in comet-ml
     Returns:
         cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
         (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
