@@ -103,24 +103,27 @@ class Mapper:
         kl_reg = (density_term / self.lambda_d).tolist() if density_term is not None else np.nan
         vg_reg = (vg_term / self.lambda_g2).tolist()
 
+        entropy_reg = (regularizer_term / self.lambda_r).tolist()
+
         if verbose:
 
-            term_numbers = [round(main_loss, 3), round(kl_reg, 3), round(vg_reg, 3), round(regularizer_term, 3)]
+            term_numbers = [main_loss, kl_reg, vg_reg, entropy_reg]
             term_names = ['Score', 'KL reg', 'VG reg', 'Entropy reg']
 
-            for i in range(len(term_numbers)):
-                if np.isnan(term_numbers[i]):
-                    del term_numbers[i]
-                    del term_names[i]
-                
-            msg = str(dict(zip(term_names, term_numbers))).replace("'", "").replace("{","").replace("}", "")
-            print(msg)
+            d = dict(zip(term_names, term_numbers))
+            clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
+            msg = []
+            for k in clean_dict:
+                m = '{}: {:.3f}'.format(k, clean_dict[k])
+                msg.append(m)
+
+            print(str(msg).replace("{", "").replace("}", "").replace("'",""))
 
         total_loss = - expression_term - regularizer_term
         if density_term is not None:
             total_loss = total_loss + density_term
 
-        return total_loss, main_loss, vg_reg, kl_reg, regularizer_term
+        return total_loss, main_loss, vg_reg, kl_reg, entropy_reg
 
     def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
         """

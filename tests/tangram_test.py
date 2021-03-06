@@ -81,7 +81,7 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     scale=scale,
                     random_state=42,
                     num_epochs=500, 
-                    verbose=False)
+                    verbose=True)
 
     # check if first element of output_admap.X is equal to expected value
     assert round(ad_map.X[0,0], 5) == round(e, 5)
