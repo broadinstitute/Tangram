@@ -152,22 +152,17 @@ class Mapper:
                 run_loss = self._loss_fn(verbose=True)
 
             loss = run_loss[0]
-            main_loss = np.float64(run_loss[1])
-            vg_reg = np.float64(run_loss[2])
-            kl_reg = np.float64(run_loss[3])
-            entropy_reg = np.float64(run_loss[4])
-
-            training_history['total_loss'].append(loss)
-            training_history['main_loss'].append(main_loss)
-            training_history['vg_reg'].append(vg_reg)
-            training_history['kl_reg'].append(kl_reg)
-            training_history['entropy_reg'].append(entropy_reg)
+            training_history['total_loss'].append(np.float64(loss))
+            training_history['main_loss'].append(np.float64(run_loss[1]))
+            training_history['vg_reg'].append(np.float64(run_loss[2]))
+            training_history['kl_reg'].append(np.float64(run_loss[3]))
+            training_history['entropy_reg'].append(np.float64(run_loss[4]))
 
             if experiment:
-                experiment.log_metric('main_loss', main_loss)
-                experiment.log_metric('vg_reg', vg_reg)
-                experiment.log_metric('kl_reg', kl_reg)
-                experiment.log_metric('entropy_reg', entropy_reg)
+                experiment.log_metric('main_loss', np.float64(run_loss[1]))
+                experiment.log_metric('vg_reg', np.float64(run_loss[2]))
+                experiment.log_metric('kl_reg', np.float64(run_loss[3]))
+                experiment.log_metric('entropy_reg', np.float64(run_loss[4]))
 
             optimizer.zero_grad()
             loss.backward()

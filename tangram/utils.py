@@ -131,7 +131,7 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
-    
+
     adata_sc = adata_sc.copy()
     
     # put all var index to lower case to align
@@ -260,11 +260,10 @@ def cross_val(ad_sc,
         (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
 
-    if verbose==False:
-        logger_root = logging.getLogger()
-        logger_root.disabled=True
-        logger_ann = logging.getLogger("anndata")
-        logger_ann.disabled = True
+    logger_root = logging.getLogger()
+    logger_root.disabled=True
+    logger_ann = logging.getLogger("anndata")
+    logger_ann.disabled = True
 
     test_genes_list = []
     test_pred_list = []
@@ -308,9 +307,9 @@ def cross_val(ad_sc,
         test_score_list.append(test_score)
         train_score_list.append(train_score)
 
-        logging.info(
-            "cv set: {}----train score: {:.3f}----test score: {:.3f}\n".format(curr_cv_set, train_score, test_score)
-        )
+        if verbose == True:
+            msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score)
+            print(msg)
 
         if experiment:
             experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
@@ -328,8 +327,8 @@ def cross_val(ad_sc,
                'avg_test_score': avg_test_score,
                'avg_train_score': avg_train_score}
 
-    print('cv test score {:.3f}'.format(avg_test_score))
-    print('cv train score {:.3f}'.format(avg_train_score))
+    print('cv avg test score {:.3f}'.format(avg_test_score))
+    print('cv avg train score {:.3f}'.format(avg_train_score))
 
     if experiment:
         experiment.log_metric("avg test score", avg_test_score)
