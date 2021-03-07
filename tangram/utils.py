@@ -300,7 +300,7 @@ def cross_val(ad_sc,
         # output scores
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
         test_score = df_g[df_g['is_training'] == False]['score'].mean()
-        train_score = df_g[df_g['is_training'] == True]['score'].mean()
+        train_score = list(ad_map.uns['training_history']['main_loss'])[-1]
 
         # output avg score
         test_genes_list.append(test_genes)
