@@ -25,18 +25,6 @@ def ad_sp():
 
 # test data
 @pytest.fixture
-def ad_sc_2():
-    ad_sc_2 = sc.read_h5ad('test_data/test_2_ad_sc_readytomap.h5ad')
-    return ad_sc_2
-
-# test data
-@pytest.fixture
-def ad_sp_2():
-    ad_sp_2 = sc.read_h5ad('test_data/test_2_ad_sp_readytomap.h5ad')
-    return ad_sp_2
-
-# test data
-@pytest.fixture
 def ad_sc_mock():
     X = np.array([[0,1,1],[0,1,1]])
     obs = pd.DataFrame(index=['cell_1', 'cell_2'])
@@ -84,30 +72,6 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
     ad_map = tg.map_cells_to_space(
                     adata_cells=ad_sc,
                     adata_space=ad_sp,
-                    device='cpu',
-                    mode=mode,
-                    cluster_label=cluster_label,
-                    lambda_g1=lambda_g1,
-                    lambda_g2=lambda_g2,
-                    lambda_d=lambda_d,
-                    scale=scale,
-                    random_state=42,
-                    num_epochs=500, 
-                    verbose=True)
-
-    # check if first element of output_admap.X is equal to expected value
-    assert round(ad_map.X[0,0], 5) == round(e, 5)
-
-# test mapping function with different parameters
-@pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e', [
-    ('clusters', 'subclass_label', 1, 0, 0, True, np.float32(0.0022277704)),
-])
-def test_map_cells_to_space_2(ad_sc_2, ad_sp_2, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e):
-    
-    # mapping with defined random_state
-    ad_map = tg.map_cells_to_space(
-                    adata_cells=ad_sc_2,
-                    adata_space=ad_sp_2,
                     device='cpu',
                     mode=mode,
                     cluster_label=cluster_label,
@@ -182,45 +146,6 @@ def test_train_score_match(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
     # assert avg_score_df == avg_score_train_hist
     assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
-
-
-# test to see if the average training score matches between the one in training history and the one from compare_spatial_geneexp function
-@pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale', [
-    ('clusters', 'subclass_label', 1, 0, 0, True),
-    ('clusters', 'subclass_label', 1, 0, 0, False),
-    ('clusters', 'subclass_label', 1, 1, 0, True),
-    ('clusters', 'subclass_label', 1, 1, 0, False),
-    ('clusters', 'subclass_label', 1, 0, 1, True),
-    ('clusters', 'subclass_label', 1, 0, 1, False),
-])
-def test_train_score_match_2(ad_sc_2, ad_sp_2, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale):
-    
-    # mapping with defined random_state
-    ad_map = tg.map_cells_to_space(
-                    adata_cells=ad_sc_2,
-                    adata_space=ad_sp_2,
-                    device='cpu',
-                    mode=mode,
-                    cluster_label=cluster_label,
-                    lambda_g1=lambda_g1,
-                    lambda_g2=lambda_g2,
-                    lambda_d=lambda_d,
-                    scale=scale,
-                    random_state=42,
-                    num_epochs=500,
-                    verbose=False)
-
-    # call project_genes to project input ad_sc data to ad_ge spatial data with ad_map
-    ad_ge = tg.project_genes(adata_map=ad_map, adata_sc=ad_sc_2, cluster_label=cluster_label, scale=scale)
-    df_all_genes = tg.compare_spatial_geneexp(ad_ge, ad_sp_2)
-    
-    avg_score_df = df_all_genes['score'].mean()
-    avg_score_train_hist = list(ad_map.uns['training_history']['main_loss'])[-1]
-
-    # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
-    # assert avg_score_df == avg_score_train_hist
-    assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
-
 
 
 
