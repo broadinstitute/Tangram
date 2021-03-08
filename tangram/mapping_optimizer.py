@@ -11,6 +11,8 @@ import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
 
+from comet_ml import Experiment
+
 
 class Mapper:
     """
@@ -101,37 +103,29 @@ class Mapper:
         kl_reg = (density_term / self.lambda_d).tolist() if density_term is not None else np.nan
         vg_reg = (vg_term / self.lambda_g2).tolist()
 
+        entropy_reg = (regularizer_term / self.lambda_r).tolist()
+
         if verbose:
 
-            if not np.isnan(kl_reg) and not np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, kl_reg, vg_reg
-                )
+            term_numbers = [main_loss, kl_reg, vg_reg, entropy_reg]
+            term_names = ['Score', 'KL reg', 'VG reg', 'Entropy reg']
 
-            elif np.isnan(kl_reg) and np.isnan(vg_reg):
-                msg = 'Score: {:.3f}'.format(
-                    main_loss
-                )
+            d = dict(zip(term_names, term_numbers))
+            clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
+            msg = []
+            for k in clean_dict:
+                m = '{}: {:.3f}'.format(k, clean_dict[k])
+                msg.append(m)
 
-            elif np.isnan(kl_reg):
-                msg = 'Score: {:.3f}, VG reg: {:.3f}'.format(
-                    main_loss, vg_reg
-                )
-
-            elif np.isnan(vg_reg):
-                msg = 'Score: {:.3f}, KL reg: {:.3f}'.format(
-                    main_loss, kl_reg
-                )
-
-            print(msg)
+            print(str(msg).replace("[", "").replace("]", "").replace("'",""))
 
         total_loss = - expression_term - regularizer_term
         if density_term is not None:
             total_loss = total_loss + density_term
 
-        return total_loss, main_loss, vg_reg, kl_reg
+        return total_loss, main_loss, vg_reg, kl_reg, entropy_reg
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
         """
         Run the optimizer and returns the mapping outcome.
         Args:
@@ -148,19 +142,27 @@ class Mapper:
         if print_each:
             logging.info(f'Printing scores every {print_each} epochs.')
 
-        keys = ['total_loss', 'main_loss', 'vg_reg', 'gv_reg']
-        values = [[] for i in range(4)]
+        keys = ['total_loss', 'main_loss', 'vg_reg', 'kl_reg', 'entropy_reg']
+        values = [[] for i in range(len(keys))]
         training_history = {key:value for key, value in zip(keys, values)}
         for t in range(num_epochs):
             if print_each is None or t % print_each != 0:
                 run_loss = self._loss_fn(verbose=False)
             else:
                 run_loss = self._loss_fn(verbose=True)
+
             loss = run_loss[0]
             training_history['total_loss'].append(np.float64(loss))
             training_history['main_loss'].append(np.float64(run_loss[1]))
             training_history['vg_reg'].append(np.float64(run_loss[2]))
-            training_history['gv_reg'].append(np.float64(run_loss[3]))
+            training_history['kl_reg'].append(np.float64(run_loss[3]))
+            training_history['entropy_reg'].append(np.float64(run_loss[4]))
+
+            if experiment:
+                experiment.log_metric('main_loss', np.float64(run_loss[1]))
+                experiment.log_metric('vg_reg', np.float64(run_loss[2]))
+                experiment.log_metric('kl_reg', np.float64(run_loss[3]))
+                experiment.log_metric('entropy_reg', np.float64(run_loss[4]))
 
             optimizer.zero_grad()
             loss.backward()

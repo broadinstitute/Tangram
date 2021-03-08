@@ -131,6 +131,17 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
+
+    adata_sc = adata_sc.copy()
+    
+    # put all var index to lower case to align
+    adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
+
+    adata_sc.var_names_make_unique()
+
+    # remove all-zero-valued genes
+    sc.pp.filter_genes(adata_sc, min_cells=1)
+
     if cluster_label:
         adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
 
@@ -243,17 +254,16 @@ def cross_val(ad_sc,
         scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
         mode: string, cross validation mode, 'loo' and 'kfold' supported
         return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
-        experiment: bool, experiment object in comet-ml for logging training in comet-ml
+        experiment: experiment object in comet-ml for logging training in comet-ml
     Returns:
         cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
         (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
 
-    if verbose==False:
-        logger_root = logging.getLogger()
-        logger_root.disabled=True
-        logger_ann = logging.getLogger("anndata")
-        logger_ann.disabled = True
+    logger_root = logging.getLogger()
+    logger_root.disabled=True
+    logger_ann = logging.getLogger("anndata")
+    logger_ann.disabled = True
 
     test_genes_list = []
     test_pred_list = []
@@ -276,7 +286,7 @@ def cross_val(ad_sc,
             lambda_g2=lambda_g2,
             lambda_r=lambda_r,
             random_state=random_state,
-            verbose=verbose,
+            verbose=False,
         )
 
         # project on space
@@ -290,16 +300,16 @@ def cross_val(ad_sc,
         # output scores
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
         test_score = df_g[df_g['is_training'] == False]['score'].mean()
-        train_score = df_g[df_g['is_training'] == True]['score'].mean()
+        train_score = list(adata_map.uns['training_history']['main_loss'])[-1]
 
         # output avg score
         test_genes_list.append(test_genes)
         test_score_list.append(test_score)
         train_score_list.append(train_score)
 
-        logging.info(
-            "cv set: {}----train score: {:.3f}----test score: {:.3f}\n".format(curr_cv_set, train_score, test_score)
-        )
+        if verbose == True:
+            msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score)
+            print(msg)
 
         if experiment:
             experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
@@ -317,8 +327,8 @@ def cross_val(ad_sc,
                'avg_test_score': avg_test_score,
                'avg_train_score': avg_train_score}
 
-    print('cv test score {:.3f}'.format(avg_test_score))
-    print('cv train score {:.3f}'.format(avg_train_score))
+    print('cv avg test score {:.3f}'.format(avg_test_score))
+    print('cv avg train score {:.3f}'.format(avg_train_score))
 
     if experiment:
         experiment.log_metric("avg test score", avg_test_score)

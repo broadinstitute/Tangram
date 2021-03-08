@@ -81,7 +81,7 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     scale=scale,
                     random_state=42,
                     num_epochs=500, 
-                    verbose=False)
+                    verbose=True)
 
     # check if first element of output_admap.X is equal to expected value
     assert round(ad_map.X[0,0], 5) == round(e, 5)
@@ -146,7 +146,6 @@ def test_train_score_match(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
     # assert avg_score_df == avg_score_train_hist
     assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
-
 
 
 
