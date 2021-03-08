@@ -286,7 +286,7 @@ def cross_val(ad_sc,
             lambda_g2=lambda_g2,
             lambda_r=lambda_r,
             random_state=random_state,
-            verbose=verbose,
+            verbose=False,
         )
 
         # project on space
