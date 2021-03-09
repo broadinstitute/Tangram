@@ -17,22 +17,23 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/broadinstitute/Tangram",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_namespace_packages(),
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "Operating System :: MacOS",
     ],
     python_requires='>=3.6',
     install_requires=[
-        "pip>=19.0.0",
-        "torch>=1.4.0",
-        "pandas>=1.1.0",
-        "numpy>=1.19.1",
-        "scipy>=1.5.2",
-        "matplotlib>=3.0.0",
-        "seaborn>=0.10.1",
-        "scanpy==1.6.0",
-        # "jupyterlab>=2.2.6",
+        "pip",
+        "torch",
+        "pandas",
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "seaborn",
+        "scanpy",
+        "comet_ml",
+        "scikit-learn"
     ]
 )
 

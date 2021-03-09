@@ -14,4 +14,31 @@ __pycache__
 
 # ignore AnnDatas
 *.h5ad
+# except for test datasets
+!test_ad_sc_readytomap.h5ad
+!test_ad_sp_readytomap.h5ad
+!test_2_ad_sc_readytomap.h5ad
+!test_2_ad_sp_readytomap.h5ad
 example/data/ 
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ignore coverage report
+*.coverage

@@ -1,0 +1,32 @@
+name: CI
+
+on: 
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: set up python 3.8.5
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8.5
+      
+      - name: set up conda environment
+        uses: conda-incubator/setup-miniconda@v2
+        with: 
+          activate-environment: test
+          auto-activate-base: false
+          environment-file: environment.yml
+
+      - name: run test
+        shell: bash -l {0}
+        run: |
+          conda install pytest
+          pip install .
+          pytest tests/
+        

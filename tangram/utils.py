@@ -8,8 +8,21 @@ import gzip
 import pickle
 import scanpy as sc
 
+from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import KFold
+from comet_ml import Experiment
+
 from . import mapping_utils as mu
 
+import logging
+import warnings
+
+# import torch
+# from torch.nn.functional import cosine_similarity
+
+warnings.filterwarnings('ignore')
+logger_ann = logging.getLogger("anndata")
+logger_ann.disabled = True
 
 def read_pickle(filename):
     """
@@ -112,13 +125,27 @@ def project_cell_annotations(adata_map, annotation='cell_type'):
     return df_ct_prob
 
 
-def project_genes(adata_map, adata_sc):
+def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     """
         Transfer gene expression from the single cell onto space.
         Returns a spot-by-gene AnnData containing spatial gene 
         expression from the single cell data.
     """
-    if adata_map.obs.index.equals(adata_sc.obs.index) is False:
+
+    adata_sc = adata_sc.copy()
+    
+    # put all var index to lower case to align
+    adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
+
+    adata_sc.var_names_make_unique()
+
+    # remove all-zero-valued genes
+    sc.pp.filter_genes(adata_sc, min_cells=1)
+
+    if cluster_label:
+        adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
+
+    if not adata_map.obs.index.equals(adata_sc.obs.index):
         raise ValueError('The two AnnDatas need to have same `obs` index.')
     if hasattr(adata_sc.X, 'toarray'):
         adata_sc.X = adata_sc.X.toarray()
@@ -155,6 +182,14 @@ def compare_spatial_geneexp(adata_space_1, adata_space_2):
     for v1, v2 in zip(X_1.T, X_2.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
+
+    # cos_sims = []
+    # for v1, v2 in zip(X_1.T, X_2.T):
+    #     v1_tensor = torch.tensor(v1)
+    #     v2_tensor = torch.tensor(v2)
+    #     cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
+    #     cos_sims.append(cos_sim)
+
     genes = list(np.reshape(adata_space_1.var.index.values, (-1,)))
     df_g = pd.DataFrame(cos_sims, genes, columns=['score'])
     for adata in [adata_space_1, adata_space_2]:
@@ -166,57 +201,202 @@ def compare_spatial_geneexp(adata_space_1, adata_space_2):
     return df_g
 
 
-# DEPRECATED
-def transfer_annotations_prob(mapping_matrix, to_transfer):
-    """
-    Transfer cell annotations onto space through a mapping matrix.
+def cv_data_gen(ad_sc, ad_sp, mode='loo'):
+    """ This function generates cross validation datasets
+
     Args:
-        mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
-        to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
-    Returns:
-        A matrix of annotations onto space, with shape (number_spots, number_annotations)
-    """
-    return mapping_matrix.transpose() @ to_transfer
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
+        mode: string, support 'loo' and 'kfold'
 
-
-def transfer_annotations_prob_filter(mapping_matrix, filter, to_transfer):
     """
-    Transfer cell annotations onto space through a mapping matrix and a filter.
+    genes_array = np.array(list(set(ad_sc.var.index.values)))
+
+    if mode == 'loo':
+        cv = LeaveOneOut()
+    elif mode == 'kfold':
+        cv = KFold(n_splits=10)
+
+    for train_idx, test_idx in cv.split(genes_array):
+        train_genes = genes_array[train_idx]
+        test_genes = list(genes_array[test_idx])
+        ad_sc_train, ad_sp_train = ad_sc[:, train_genes], ad_sp[:, train_genes]
+        yield ad_sc_train, ad_sp_train, test_genes
+
+def cross_val(ad_sc,
+              ad_sp,
+              cluster_label=None,
+              mapping_mode='clusters',
+              scale=True,
+              lambda_d=0,
+              lambda_g1=1,
+              lambda_g2=0,
+              lambda_r=0,
+              num_epochs=1000,
+              device='cpu',
+              learning_rate=0.1,
+              mode='loo',
+              return_gene_pred=False,
+              experiment=None,
+              random_state=None, 
+              verbose=False
+              ):
+    """ This function executes cross validation
+
     Args:
-        mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
-        filter (ndarray): Filter with shape (number_cells,).
-        to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
+        ad_sc: AnnData, single cell data
+        ad_sp: AnnData, gene spatial data
+        lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
+        lambda_d (float): Optional. Strength of density regularizer. Default is 0.
+        lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
+        lambda_r (float): Optional. Strength of entropy regularizer.
+        cluster_label: string, the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+        scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
+        mode: string, cross validation mode, 'loo' and 'kfold' supported
+        return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
+        experiment: experiment object in comet-ml for logging training in comet-ml
     Returns:
-        A matrix of annotations onto space, with shape (number_spots, number_annotations).
+        cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
+        (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
     """
-    tt = to_transfer * filter[:, np.newaxis]
-    return mapping_matrix.transpose() @ tt
+
+    logger_root = logging.getLogger()
+    logger_root.disabled=True
+    logger_ann = logging.getLogger("anndata")
+    logger_ann.disabled = True
+
+    test_genes_list = []
+    test_pred_list = []
+    test_score_list = []
+    train_score_list = []
+    curr_cv_set = 1
+    for ad_sc_train, ad_sp_train, test_genes in cv_data_gen(ad_sc, ad_sp, mode):
+        # train
+        adata_map = mu.map_cells_to_space(
+            adata_cells=ad_sc_train,
+            adata_space=ad_sp_train,
+            mode=mapping_mode,
+            device=device,
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            cluster_label=cluster_label,
+            scale=scale,
+            lambda_d=lambda_d,
+            lambda_g1=lambda_g1,
+            lambda_g2=lambda_g2,
+            lambda_r=lambda_r,
+            random_state=random_state,
+            verbose=False,
+        )
+
+        # project on space
+        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label, scale=scale)
+
+        # retrieve result for test gene (genes X cluster/cell)
+        if mode == 'loo' and return_gene_pred:
+            ad_ge_test = ad_ge[:,test_genes].X.T
+            test_pred_list.append(ad_ge_test)
+
+        # output scores
+        df_g = compare_spatial_geneexp(ad_ge, ad_sp)
+        test_score = df_g[df_g['is_training'] == False]['score'].mean()
+        train_score = list(adata_map.uns['training_history']['main_loss'])[-1]
+
+        # output avg score
+        test_genes_list.append(test_genes)
+        test_score_list.append(test_score)
+        train_score_list.append(train_score)
+
+        if verbose == True:
+            msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score)
+            print(msg)
+
+        if experiment:
+            experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
+            experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)
+
+        curr_cv_set += 1
+
+    # use nanmean to ignore nan in score list
+    avg_test_score = np.nanmean(test_score_list)
+    avg_train_score = np.nanmean(train_score_list)
+
+    cv_dict = {'mode': mode,
+               'weighting': scale,
+               'lambda_d': lambda_d, 'lambda_g1': lambda_g1, 'lambda_g2': lambda_g2,
+               'avg_test_score': avg_test_score,
+               'avg_train_score': avg_train_score}
+
+    print('cv avg test score {:.3f}'.format(avg_test_score))
+    print('cv avg train score {:.3f}'.format(avg_train_score))
+
+    if experiment:
+        experiment.log_metric("avg test score", avg_test_score)
+        experiment.log_metric("avg train score", avg_train_score)
+
+    if mode=='loo' and return_gene_pred:
+
+        # output AnnData for generated spatial data by LOOCV
+        ad_ge_cv = sc.AnnData(X=np.squeeze(test_pred_list).T, 
+                              obs=ad_sp.obs.copy(), 
+                              var=pd.DataFrame(test_score_list, columns=['test_score'], index=np.squeeze(test_genes_list)))
+
+        return cv_dict, ad_ge_cv
+
+    return cv_dict
 
 
-def df_to_cell_types(df, cell_types):
-    """
-    Utility function that "randomly" assigns cell coordinates in a voxel to known numbers of cell types in that voxel.
-    Used for deconvolution.
-    Args:
-        df (DataFrame): Columns correspond to cell types.  Each row in the DataFrame corresponds to a voxel and
-            specifies the known number of cells in that voxel for each cell type (int).
-            The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
-        cell_types (sequence): Sequence of cell type names to be considered for deconvolution.
-            Columns in 'df' not included in 'cell_types' are ignored for assignment.
-    Returns:
-        A dictionary <cell type name> -> <list of (x,y) coordinates for the cell type>
-    """
-    df_cum_sums = df[cell_types].cumsum(axis=1)
+# # DEPRECATED
+# def transfer_annotations_prob(mapping_matrix, to_transfer):
+#     """
+#     Transfer cell annotations onto space through a mapping matrix.
+#     Args:
+#         mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
+#         to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
+#     Returns:
+#         A matrix of annotations onto space, with shape (number_spots, number_annotations)
+#     """
+#     return mapping_matrix.transpose() @ to_transfer
 
-    df_c = df.copy()
 
-    for i in df_cum_sums.columns:
-        df_c[i] = df_cum_sums[i]
+# def transfer_annotations_prob_filter(mapping_matrix, filter, to_transfer):
+#     """
+#     Transfer cell annotations onto space through a mapping matrix and a filter.
+#     Args:
+#         mapping_matrix (ndarray): Mapping matrix with shape (number_cells, number_spots).
+#         filter (ndarray): Filter with shape (number_cells,).
+#         to_transfer (ndarray): Cell annotations matrix with shape (number_cells, number_annotations).
+#     Returns:
+#         A matrix of annotations onto space, with shape (number_spots, number_annotations).
+#     """
+#     tt = to_transfer * filter[:, np.newaxis]
+#     return mapping_matrix.transpose() @ tt
 
-    cell_types_mapped = defaultdict(list)
-    for i_index, i in enumerate(cell_types):
-        for j_index, j in df_c.iterrows():
-            start_ind = 0 if i_index == 0 else j[cell_types[i_index - 1]]
-            end_ind = j[i]
-            cell_types_mapped[i].extend(j['centroids'][start_ind:end_ind].tolist())
-    return cell_types_mapped
+
+# def df_to_cell_types(df, cell_types):
+#     """
+#     Utility function that "randomly" assigns cell coordinates in a voxel to known numbers of cell types in that voxel.
+#     Used for deconvolution.
+#     Args:
+#         df (DataFrame): Columns correspond to cell types.  Each row in the DataFrame corresponds to a voxel and
+#             specifies the known number of cells in that voxel for each cell type (int).
+#             The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
+#         cell_types (sequence): Sequence of cell type names to be considered for deconvolution.
+#             Columns in 'df' not included in 'cell_types' are ignored for assignment.
+#     Returns:
+#         A dictionary <cell type name> -> <list of (x,y) coordinates for the cell type>
+#     """
+#     df_cum_sums = df[cell_types].cumsum(axis=1)
+
+#     df_c = df.copy()
+
+#     for i in df_cum_sums.columns:
+#         df_c[i] = df_cum_sums[i]
+
+#     cell_types_mapped = defaultdict(list)
+#     for i_index, i in enumerate(cell_types):
+#         for j_index, j in df_c.iterrows():
+#             start_ind = 0 if i_index == 0 else j[cell_types[i_index - 1]]
+#             end_ind = j[i]
+#             cell_types_mapped[i].extend(j['centroids'][start_ind:end_ind].tolist())
+#     return cell_types_mapped
