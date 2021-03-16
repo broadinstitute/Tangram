@@ -8,6 +8,15 @@ Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and base
 Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in the adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
+## Tangram News
+
+* On Jan 28th 2021, Sten Linnarsson gave a [talk](https://www.youtube.com/watch?v=0mxIe2AsSKs) at the WWNDev Forum and demostrated their mappings of the developmental mouse brain using Tangram.
+
+* On Mar 9th 2021, Nicholas Eagles wrote a [blog post](http://research.libd.org/rstatsclub/2021/03/09/lessons-learned-applying-tangram-on-visium-data/#.YFDd7ZNKhax) about applying Tangram on Visium data.
+
+
+
+***
 ## How to run Tangram at cell level
 
 To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. 
