@@ -95,6 +95,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
                        device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
                        cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
                        random_state=None, verbose=True, experiment=None,
+                       density_prior = None,
                        ):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
@@ -106,12 +107,16 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
         :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+        :param density_prior (ndarray): Spatial density of cells, shape = (number_spots,). If not provided, the density term is ignored. This array should satisfy the constraints d.sum() == 1.
         :param experiment: experiment object in comet-ml for logging training in comet-ml
     """
 
     # check invalid values for arguments
     if lambda_g1 == 0:
         raise ValueError('lambda_g1 cannot be 0.')
+ 
+    if density_prior and lambda_d==0:
+        raise ValueError('When density_prior is not None, lambda_d cannot be 0.')
 
     if mode not in ['clusters', 'cells']:
         raise ValueError('Argument "mode" must be "cells" or "clusters"')
@@ -149,9 +154,10 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
 
     if mode == 'cells':
-        d = None
+        d = density_prior
 
     if mode == 'clusters':
+        d = density_prior
         if d is None:
             d = np.ones(G.shape[0])/G.shape[0]
 
