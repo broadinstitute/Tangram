@@ -115,7 +115,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     if lambda_g1 == 0:
         raise ValueError('lambda_g1 cannot be 0.')
  
-    if density_prior and lambda_d==0:
+    if density_prior is not None and lambda_d==0:
         raise ValueError('When density_prior is not None, lambda_d cannot be 0.')
 
     if mode not in ['clusters', 'cells']:
