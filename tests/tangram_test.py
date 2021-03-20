@@ -56,17 +56,20 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
 
     assert new_adata_2.var.index.equals(new_adata_1.var.index)
     assert new_adata_1.X.any(axis=0).all() and new_adata_2.X.any(axis=0).all()
+    assert 'rna_count_based_density' in new_adata_2.obs.keys()
 
 # test mapping function with different parameters
-@pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e', [
-    ('clusters', 'subclass', 1, 0, 0, True, np.float32(0.00033864976)), 
-    ('clusters', 'subclass', 1, 0, 0, False, np.float32(1.0042528e-05)),
-    ('clusters', 'subclass', 1, 1, 0, True, np.float32(1.7422922e-06)), 
-    ('clusters', 'subclass', 1, 1, 0, False, np.float32(6.644411e-06)),
-    ('clusters', 'subclass', 1, 1, 1, True, np.float32(0.0013598711)),
-    ('clusters', 'subclass', 1, 1, 1, False, np.float32(4.3795535e-06)),
+@pytest.mark.parametrize('mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale, e', [
+    ('clusters', 'subclass', 1, 0, 0, None, True, np.float32(0.00033864976)), 
+    ('clusters', 'subclass', 1, 0, 0, None, False, np.float32(1.0042528e-05)),
+    ('clusters', 'subclass', 1, 1, 0, None, True, np.float32(1.7422922e-06)), 
+    ('clusters', 'subclass', 1, 1, 0, None, False, np.float32(6.644411e-06)),
+    ('clusters', 'subclass', 1, 1, 1, None, True, np.float32(0.0013598711)),
+    ('clusters', 'subclass', 1, 1, 1, None, False, np.float32(4.3795535e-06)),
+    ('clusters', 'subclass', 1, 0, 1, 'rna_count_based', True, np.float32(0.0004370494)),
+    ('clusters', 'subclass', 1, 0, 1, 'uniform', True, np.float32(0.0004415631)),
 ])
-def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e):
+def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale, e):
     
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
@@ -78,6 +81,7 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
                     lambda_g1=lambda_g1,
                     lambda_g2=lambda_g2,
                     lambda_d=lambda_d,
+                    density_prior=density_prior,
                     scale=scale,
                     random_state=42,
                     num_epochs=500, 
@@ -94,6 +98,7 @@ def test_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda
 ])
 def test_invalid_map_cells_to_space(ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e):
     with pytest.raises(ValueError) as exc_info:
+
         tg.map_cells_to_space(
                     adata_cells=ad_sc,
                     adata_space=ad_sp,

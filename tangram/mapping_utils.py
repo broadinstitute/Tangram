@@ -60,8 +60,7 @@ def pp_adatas(adata_1, adata_2, genes=None):
 
     # Calculate density prior as % of rna molecule count
     rna_count_per_spot = adata_2.X.sum(axis=1)
-    density_prior = rna_count_per_spot/np.sum(rna_count_per_spot)
-    adata_2.obs['rna_count_based_density'] = density_prior
+    adata_2.obs['rna_count_based_density'] = rna_count_per_spot/np.sum(rna_count_per_spot)
 
     assert adata_2.var.index.equals(adata_1.var.index)
     return adata_1, adata_2

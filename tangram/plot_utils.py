@@ -317,6 +317,9 @@ def plot_test_scores(ad_sc, ad_sp, gene_test_score_df, bins='auto', alpha=.7):
     ad_sp: anndata spatial data
     gene_test_score_df: pandas dataframe with "gene names" as the index and "test_score" as the column
     """
+
+    ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
+
     ut.annotate_gene_sparsity(ad_sc)
     ut.annotate_gene_sparsity(ad_sp)
     
