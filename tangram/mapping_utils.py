@@ -58,9 +58,13 @@ def pp_adatas(adata_1, adata_2, genes=None):
     adata_1 = adata_1[:, genes]
     adata_2 = adata_2[:, genes]
 
+    # Calculate density prior as % of rna molecule count
+    rna_count_per_spot = adata_2.X.sum(axis=1)
+    density_prior = rna_count_per_spot/np.sum(rna_count_per_spot)
+    adata_2.obs['rna_count_based_density'] = density_prior
+
     assert adata_2.var.index.equals(adata_1.var.index)
     return adata_1, adata_2
-
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """
@@ -94,8 +98,9 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
                        device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
                        cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
-                       random_state=None, verbose=True, experiment=None,
-                       density_prior = None,
+                       random_state=None, verbose=True,
+                       density_prior=None,
+                       experiment=None,
                        ):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
@@ -107,7 +112,7 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         :param lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
         :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
-        :param density_prior (ndarray): Spatial density of cells, shape = (number_spots,). If not provided, the density term is ignored. This array should satisfy the constraints d.sum() == 1.
+        :param density_prior (ndarray or string): Spatial density of cells, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). If not provided, the density term is ignored. This array should satisfy the constraints d.sum() == 1.
         :param experiment: experiment object in comet-ml for logging training in comet-ml
     """
 
@@ -152,6 +157,14 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
 
     if not S.any(axis=0).all() or not G.any(axis=0).all():
         raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
+
+    # define density_prior if 'rna_count_based' is passed to the density_prior argument:
+    if density_prior == 'rna_count_based':
+        density_prior = adata_space.obs['rna_count_based_density']
+
+    # define density_prior if 'uniform' is passed to the density_prior argument:
+    elif density_prior == 'uniform':
+        density_prior = np.ones(G.shape[0])/G.shape[0]
 
     if mode == 'cells':
         d = density_prior
