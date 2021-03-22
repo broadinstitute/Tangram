@@ -156,47 +156,46 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     return adata_ge
 
 
-def compare_spatial_geneexp(adata_space_1, adata_space_2):
+def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     """
-         Compare gene expression in the two spatial AnnDatas. 
+         Compare gene expression in the generated ans original spatial AnnDatas. 
          Used to compared mapped single cell data to original spatial data.
          Returns a DataFrame with similarity scores between genes.
     """
     
-    adata_space_1, adata_space_2 = mu.pp_adatas(adata_space_1, adata_space_2)
-    annotate_gene_sparsity(adata_space_1)
-    annotate_gene_sparsity(adata_space_2)
+    ad_ge, ad_sp = mu.pp_adatas(ad_ge, ad_sp)
+    annotate_gene_sparsity(ad_sp)
 
     # Annotate cosine similarity of each training gene
     cos_sims = []
 
-    if hasattr(adata_space_1.X, 'toarray'):
-        X_1 = adata_space_1.X.toarray()
+    if hasattr(ad_ge.X, 'toarray'):
+        X_1 = ad_ge.X.toarray()
     else:
-        X_1 = adata_space_1.X
-    if hasattr(adata_space_2.X, 'toarray'):
-        X_2 = adata_space_2.X.toarray()
+        X_1 = ad_ge.X
+    if hasattr(ad_sp.X, 'toarray'):
+        X_2 = ad_sp.X.toarray()
     else:
-        X_2 = adata_space_2.X
+        X_2 = ad_sp.X
 
     for v1, v2 in zip(X_1.T, X_2.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
 
-    # cos_sims = []
-    # for v1, v2 in zip(X_1.T, X_2.T):
-    #     v1_tensor = torch.tensor(v1)
-    #     v2_tensor = torch.tensor(v2)
-    #     cos_sim = cosine_similarity(v1_tensor, v2_tensor, dim=0).tolist()
-    #     cos_sims.append(cos_sim)
-
-    genes = list(np.reshape(adata_space_1.var.index.values, (-1,)))
+    genes = list(np.reshape(ad_ge.var.index.values, (-1,)))
     df_g = pd.DataFrame(cos_sims, genes, columns=['score'])
-    for adata in [adata_space_1, adata_space_2]:
+    for adata in [ad_ge, ad_sp]:
         if 'is_training' in adata.var.keys():
             df_g['is_training'] = adata.var.is_training
-    df_g['sparsity_1'] = adata_space_1.var.sparsity
-    df_g['sparsity_2'] = adata_space_2.var.sparsity
+
+    df_g['sparsity_sp'] = ad_sp.var.sparsity
+
+    if ad_sc is not None:
+        ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
+        annotate_gene_sparsity(ad_sc)
+        df_g['sparsity_sc'] = ad_sc.var.sparsity
+        df_g['sparsity_diff'] = ad_sp.var.sparsity - ad_sc.var.sparsity
+    
     df_g = df_g.sort_values(by='score', ascending=False)
     return df_g
 
