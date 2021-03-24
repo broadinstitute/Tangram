@@ -30,8 +30,8 @@ def pp_adatas(adata_1, adata_2, genes=None):
     List of genes to use. If `None`, all genes are used.
     :return:
     """
-    adata_1 = adata_1.copy()
-    adata_2 = adata_2.copy()
+    # adata_1 = adata_1.copy()
+    # adata_2 = adata_2.copy()
     
     # put all var index to lower case to align
     adata_1.var.index = [g.lower() for g in adata_1.var.index]
