@@ -107,9 +107,9 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
         Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.
         :param mode: Tangram mode. Currently supported: `cell`, `clusters`
-        :param lambda_d (float): Optional. Hiperparameter for the density term of the optimizer. Default is 1.
+        :param lambda_d (float): Optional. Hiperparameter for the density term of the optimizer. Default is 0.
         :param lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
-        :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
+        :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
         :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
         :param density_prior (ndarray or string): Spatial density of cells, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). If not provided, the density term is ignored. This array should satisfy the constraints d.sum() == 1.
         :param experiment: experiment object in comet-ml for logging training in comet-ml
