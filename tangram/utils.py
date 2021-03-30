@@ -166,6 +166,8 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     ad_ge, ad_sp = mu.pp_adatas(ad_ge, ad_sp)
     annotate_gene_sparsity(ad_sp)
 
+    assert ad_ge.var.index.equals(ad_sp.var.index)
+
     # Annotate cosine similarity of each training gene
     cos_sims = []
 
@@ -193,12 +195,16 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     if ad_sc is not None:
         ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
         annotate_gene_sparsity(ad_sc)
-        df_g['sparsity_sc'] = ad_sc.var.sparsity
-        df_g['sparsity_diff'] = ad_sp.var.sparsity - ad_sc.var.sparsity
+
+        df_g = df_g.merge(pd.DataFrame(ad_sc.var['sparsity']),
+                          left_index=True,
+                          right_index=True,
+                          )
+        df_g.rename({'sparsity':'sparsity_sc'}, inplace=True, axis='columns')
+        df_g['sparsity_diff'] = df_g['sparsity_sp'] - df_g['sparsity_sc']
     
     df_g = df_g.sort_values(by='score', ascending=False)
     return df_g
-
 
 def cv_data_gen(ad_sc, ad_sp, mode='loo'):
     """ This function generates cross validation datasets
