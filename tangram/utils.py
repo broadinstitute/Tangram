@@ -17,12 +17,15 @@ from . import mapping_utils as mu
 import logging
 import warnings
 
+from sklearn.metrics import auc
+
 # import torch
 # from torch.nn.functional import cosine_similarity
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 logger_ann = logging.getLogger("anndata")
 logger_ann.disabled = True
+
 
 def read_pickle(filename):
     """
@@ -33,11 +36,11 @@ def read_pickle(filename):
             The file object.
     """
     try:
-        with gzip.open(filename, 'rb') as f:
+        with gzip.open(filename, "rb") as f:
             loaded_object = pickle.load(f)
             return loaded_object
     except OSError:
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             loaded_object = pickle.load(f)
             return loaded_object
 
@@ -49,10 +52,10 @@ def annotate_gene_sparsity(adata):
     mask = adata.X != 0
     gene_sparsity = np.sum(mask, axis=0) / adata.n_obs
     gene_sparsity = np.asarray(gene_sparsity)
-    gene_sparsity = 1 - np.reshape(gene_sparsity, (-1, ))
-    adata.var['sparsity'] = gene_sparsity
-    
-    
+    gene_sparsity = 1 - np.reshape(gene_sparsity, (-1,))
+    adata.var["sparsity"] = gene_sparsity
+
+
 def get_matched_genes(prior_genes_names, sn_genes_names, excluded_genes=None):
     """
     Given the list of genes in the spatial data and the list of genes in the single nuclei, identifies the subset of
@@ -103,15 +106,15 @@ def one_hot_encoding(l, keep_aggregate=False):
             column with the input list if 'keep_aggregate' is True.
             The number of rows are equal to len(l).
     """
-    df_enriched = pd.DataFrame({'cl': l})
+    df_enriched = pd.DataFrame({"cl": l})
     for i in l.unique():
-        df_enriched[i] = list(map(int, df_enriched['cl'] == i))
+        df_enriched[i] = list(map(int, df_enriched["cl"] == i))
     if not keep_aggregate:
-        del df_enriched['cl']
+        del df_enriched["cl"]
     return df_enriched
 
 
-def project_cell_annotations(adata_map, annotation='cell_type'):
+def project_cell_annotations(adata_map, annotation="cell_type"):
     """
     Transfer `annotation` from single cell data onto space.
     Args:
@@ -133,7 +136,7 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     """
 
     adata_sc = adata_sc.copy()
-    
+
     # put all var index to lower case to align
     adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
 
@@ -146,13 +149,13 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
         adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
 
     if not adata_map.obs.index.equals(adata_sc.obs.index):
-        raise ValueError('The two AnnDatas need to have same `obs` index.')
-    if hasattr(adata_sc.X, 'toarray'):
+        raise ValueError("The two AnnDatas need to have same `obs` index.")
+    if hasattr(adata_sc.X, "toarray"):
         adata_sc.X = adata_sc.X.toarray()
     X_space = adata_map.X.T @ adata_sc.X
     adata_ge = sc.AnnData(X=X_space, obs=adata_map.var, var=adata_sc.var)
-    training_genes = adata_map.uns['train_genes_df'].index.values
-    adata_ge.var['is_training'] = adata_ge.var.index.isin(training_genes)
+    training_genes = adata_map.uns["train_genes_df"].index.values
+    adata_ge.var["is_training"] = adata_ge.var.index.isin(training_genes)
     return adata_ge
 
 
@@ -162,7 +165,7 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
          Used to compared mapped single cell data to original spatial data.
          Returns a DataFrame with similarity scores between genes.
     """
-    
+
     ad_ge, ad_sp = mu.pp_adatas(ad_ge, ad_sp)
     annotate_gene_sparsity(ad_sp)
 
@@ -171,11 +174,11 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     # Annotate cosine similarity of each training gene
     cos_sims = []
 
-    if hasattr(ad_ge.X, 'toarray'):
+    if hasattr(ad_ge.X, "toarray"):
         X_1 = ad_ge.X.toarray()
     else:
         X_1 = ad_ge.X
-    if hasattr(ad_sp.X, 'toarray'):
+    if hasattr(ad_sp.X, "toarray"):
         X_2 = ad_sp.X.toarray()
     else:
         X_2 = ad_sp.X
@@ -185,28 +188,28 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
         cos_sims.append((v1 @ v2) / norm_sq)
 
     genes = list(np.reshape(ad_ge.var.index.values, (-1,)))
-    df_g = pd.DataFrame(cos_sims, genes, columns=['score'])
+    df_g = pd.DataFrame(cos_sims, genes, columns=["score"])
     for adata in [ad_ge, ad_sp]:
-        if 'is_training' in adata.var.keys():
-            df_g['is_training'] = adata.var.is_training
+        if "is_training" in adata.var.keys():
+            df_g["is_training"] = adata.var.is_training
 
-    df_g['sparsity_sp'] = ad_sp.var.sparsity
+    df_g["sparsity_sp"] = ad_sp.var.sparsity
 
     if ad_sc is not None:
         ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
         annotate_gene_sparsity(ad_sc)
 
-        df_g = df_g.merge(pd.DataFrame(ad_sc.var['sparsity']),
-                          left_index=True,
-                          right_index=True,
-                          )
-        df_g.rename({'sparsity':'sparsity_sc'}, inplace=True, axis='columns')
-        df_g['sparsity_diff'] = df_g['sparsity_sp'] - df_g['sparsity_sc']
-    
-    df_g = df_g.sort_values(by='score', ascending=False)
+        df_g = df_g.merge(
+            pd.DataFrame(ad_sc.var["sparsity"]), left_index=True, right_index=True,
+        )
+        df_g.rename({"sparsity": "sparsity_sc"}, inplace=True, axis="columns")
+        df_g["sparsity_diff"] = df_g["sparsity_sp"] - df_g["sparsity_sc"]
+
+    df_g = df_g.sort_values(by="score", ascending=False)
     return df_g
 
-def cv_data_gen(ad_sc, ad_sp, mode='loo'):
+
+def cv_data_gen(ad_sc, ad_sp, mode="loo"):
     """ This function generates cross validation datasets
 
     Args:
@@ -217,9 +220,9 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
     """
     genes_array = np.array(list(set(ad_sc.var.index.values)))
 
-    if mode == 'loo':
+    if mode == "loo":
         cv = LeaveOneOut()
-    elif mode == 'kfold':
+    elif mode == "kfold":
         cv = KFold(n_splits=10)
 
     for train_idx, test_idx in cv.split(genes_array):
@@ -228,24 +231,26 @@ def cv_data_gen(ad_sc, ad_sp, mode='loo'):
         ad_sc_train, ad_sp_train = ad_sc[:, train_genes], ad_sp[:, train_genes]
         yield ad_sc_train, ad_sp_train, test_genes
 
-def cross_val(ad_sc,
-              ad_sp,
-              cluster_label=None,
-              mapping_mode='clusters',
-              scale=True,
-              lambda_d=0,
-              lambda_g1=1,
-              lambda_g2=0,
-              lambda_r=0,
-              num_epochs=1000,
-              device='cpu',
-              learning_rate=0.1,
-              mode='loo',
-              return_gene_pred=False,
-              experiment=None,
-              random_state=None, 
-              verbose=False
-              ):
+
+def cross_val(
+    ad_sc,
+    ad_sp,
+    cluster_label=None,
+    mapping_mode="clusters",
+    scale=True,
+    lambda_d=0,
+    lambda_g1=1,
+    lambda_g2=0,
+    lambda_r=0,
+    num_epochs=1000,
+    device="cpu",
+    learning_rate=0.1,
+    mode="loo",
+    return_gene_pred=False,
+    experiment=None,
+    random_state=None,
+    verbose=False,
+):
     """ This function executes cross validation
 
     Args:
@@ -266,7 +271,7 @@ def cross_val(ad_sc,
     """
 
     logger_root = logging.getLogger()
-    logger_root.disabled=True
+    logger_root.disabled = True
     logger_ann = logging.getLogger("anndata")
     logger_ann.disabled = True
 
@@ -295,17 +300,19 @@ def cross_val(ad_sc,
         )
 
         # project on space
-        ad_ge = project_genes(adata_map, ad_sc, cluster_label=cluster_label, scale=scale)
+        ad_ge = project_genes(
+            adata_map, ad_sc, cluster_label=cluster_label, scale=scale
+        )
 
         # retrieve result for test gene (genes X cluster/cell)
-        if mode == 'loo' and return_gene_pred:
-            ad_ge_test = ad_ge[:,test_genes].X.T
+        if mode == "loo" and return_gene_pred:
+            ad_ge_test = ad_ge[:, test_genes].X.T
             test_pred_list.append(ad_ge_test)
 
         # output scores
         df_g = compare_spatial_geneexp(ad_ge, ad_sp)
-        test_score = df_g[df_g['is_training'] == False]['score'].mean()
-        train_score = list(adata_map.uns['training_history']['main_loss'])[-1]
+        test_score = df_g[df_g["is_training"] == False]["score"].mean()
+        train_score = list(adata_map.uns["training_history"]["main_loss"])[-1]
 
         # output avg score
         test_genes_list.append(test_genes)
@@ -313,12 +320,14 @@ def cross_val(ad_sc,
         train_score_list.append(train_score)
 
         if verbose == True:
-            msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(curr_cv_set, train_score, test_score)
+            msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(
+                curr_cv_set, train_score, test_score
+            )
             print(msg)
 
         if experiment:
-            experiment.log_metric('test_score_{}'.format(curr_cv_set), test_score)
-            experiment.log_metric('train_score_{}'.format(curr_cv_set), train_score)
+            experiment.log_metric("test_score_{}".format(curr_cv_set), test_score)
+            experiment.log_metric("train_score_{}".format(curr_cv_set), train_score)
 
         curr_cv_set += 1
 
@@ -326,29 +335,125 @@ def cross_val(ad_sc,
     avg_test_score = np.nanmean(test_score_list)
     avg_train_score = np.nanmean(train_score_list)
 
-    cv_dict = {'mode': mode,
-               'weighting': scale,
-               'lambda_d': lambda_d, 'lambda_g1': lambda_g1, 'lambda_g2': lambda_g2,
-               'avg_test_score': avg_test_score,
-               'avg_train_score': avg_train_score}
+    cv_dict = {
+        "mode": mode,
+        "weighting": scale,
+        "lambda_d": lambda_d,
+        "lambda_g1": lambda_g1,
+        "lambda_g2": lambda_g2,
+        "avg_test_score": avg_test_score,
+        "avg_train_score": avg_train_score,
+    }
 
-    print('cv avg test score {:.3f}'.format(avg_test_score))
-    print('cv avg train score {:.3f}'.format(avg_train_score))
+    print("cv avg test score {:.3f}".format(avg_test_score))
+    print("cv avg train score {:.3f}".format(avg_train_score))
 
     if experiment:
         experiment.log_metric("avg test score", avg_test_score)
         experiment.log_metric("avg train score", avg_train_score)
 
-    if mode=='loo' and return_gene_pred:
+    if mode == "loo" and return_gene_pred:
 
         # output AnnData for generated spatial data by LOOCV
-        ad_ge_cv = sc.AnnData(X=np.squeeze(test_pred_list).T, 
-                              obs=ad_sp.obs.copy(), 
-                              var=pd.DataFrame(test_score_list, columns=['test_score'], index=np.squeeze(test_genes_list)))
+        ad_ge_cv = sc.AnnData(
+            X=np.squeeze(test_pred_list).T,
+            obs=ad_sp.obs.copy(),
+            var=pd.DataFrame(
+                test_score_list,
+                columns=["test_score"],
+                index=np.squeeze(test_genes_list),
+            ),
+        )
 
         return cv_dict, ad_ge_cv
 
     return cv_dict
+
+
+def eval_metric(df_all_genes, test_genes=None):
+    """
+    calculate metrics on given test_genes set for evaluation
+    
+    Args:
+    df_all_genes: pandas dataframe returned by compare_spatial_geneexp(ad_ge, ad_sp, ad_sc); 
+                   with "gene names" as the index and "score", "is_training", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
+    test_genes: list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
+
+    Returns: dict with values of each evaluation metric
+    """
+
+    # validate test_genes:
+    if test_genes is not None:
+        if not set(test_genes).issubset(set(df_all_genes.index.values)):
+            raise ValueError(
+                "the input of test_genes should be subset of genes of input dataframe"
+            )
+        test_genes = np.unique(test_genes)
+
+    else:
+        test_genes = [df_all_genes[df_all_genes["is_training"] == False].index.values]
+
+    # calculate:
+    test_gene_scores = df_all_genes.loc[test_genes]["score"]
+    test_gene_sparsity_sp = df_all_genes.loc[test_genes]["sparsity_sp"]
+    test_gene_sparsity_sc = df_all_genes.loc[test_genes]["sparsity_sc"]
+    test_gene_sparsity_diff = df_all_genes.loc[test_genes]["sparsity_diff"]
+    test_score_avg = test_gene_scores.mean()
+    train_score_avg = df_all_genes[df_all_genes["is_training"] == True]["score"].mean()
+
+    # g1 metric
+    count_test_genes = test_gene_scores.shape[0]
+    test_score_sps_sp_g1 = (
+        np.sum((test_gene_scores * (1 - test_gene_sparsity_sp))) / count_test_genes
+    )
+    test_score_sps_sc_g1 = (
+        np.sum((test_gene_scores * (1 - test_gene_sparsity_sc))) / count_test_genes
+    )
+    test_score_sps_diff_g1 = (
+        np.sum((test_gene_scores * (1 - np.abs(test_gene_sparsity_diff))))
+        / count_test_genes
+    )
+
+    # g2 metric
+    test_score_sps_sp_g2 = np.sum(
+        (test_gene_scores * (1 - test_gene_sparsity_sp))
+        / (1 - test_gene_sparsity_sp).sum()
+    )
+    test_score_sps_sc_g2 = np.sum(
+        (test_gene_scores * (1 - test_gene_sparsity_sc))
+        / (1 - test_gene_sparsity_sc).sum()
+    )
+    test_score_sps_diff_g2 = np.sum(
+        (test_gene_scores * (1 - np.abs(test_gene_sparsity_diff)))
+        / (1 - np.abs(test_gene_sparsity_diff)).sum()
+    )
+
+    # tm metric
+    # Fit polynomial'
+    xs = df_all_genes.score.values
+    ys = df_all_genes.sparsity_sp.values
+    pol_deg = 3
+    pol_cs = np.polyfit(xs, ys, pol_deg)  # polynomial coefficients
+    pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
+    pol = np.poly1d(pol_cs)  # build polynomial as function
+    pol_ys = [pol(x) for x in pol_xs]  # compute polys
+
+    # Compute are under the curve of polynomial
+    auc_test_score = auc(pol_xs, pol_ys)
+
+    metric_dict = {
+        "avg_test_score": test_score_avg,
+        "avg_train_score": train_score_avg,
+        "sp_sparsity_weighted_test_score_v1": test_score_sps_sp_g1,
+        "sc_sparsity_weighted_test_score_v1": test_score_sps_sc_g1,
+        "diff_sparsity_weighted_test_score_v1": test_score_sps_diff_g1,
+        "sp_sparsity_weighted_test_score_v2": test_score_sps_sp_g2,
+        "sc_sparsity_weighted_test_score_v2": test_score_sps_sc_g2,
+        "diff_sparsity_weighted_test_score_v2": test_score_sps_diff_g2,
+        "auc_test_score": auc_test_score,
+    }
+
+    return metric_dict
 
 
 # # DEPRECATED
