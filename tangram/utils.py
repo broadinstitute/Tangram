@@ -379,7 +379,7 @@ def eval_metric(df_all_genes, test_genes=None):
                    with "gene names" as the index and "score", "is_training", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
     test_genes: list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
 
-    Returns: dict with values of each evaluation metric
+    Returns: dict with values of each evaluation metric, tuple of auc fitted coordinates and raw coordinates(test_score vs. sparsity_sp coordinates)
     """
 
     # validate test_genes:
@@ -453,7 +453,9 @@ def eval_metric(df_all_genes, test_genes=None):
         "auc_test_score": auc_test_score,
     }
 
-    return metric_dict
+    auc_coordinates = ((pol_xs, pol_ys), (xs, ys))
+
+    return metric_dict, auc_coordinates
 
 
 # # DEPRECATED
