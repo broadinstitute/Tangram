@@ -430,13 +430,21 @@ def eval_metric(df_all_genes, test_genes=None):
 
     # tm metric
     # Fit polynomial'
-    xs = df_all_genes.score.values
-    ys = df_all_genes.sparsity_sp.values
+    xs = list(test_gene_scores)
+    ys = list(test_gene_sparsity_sp)
     pol_deg = 3
     pol_cs = np.polyfit(xs, ys, pol_deg)  # polynomial coefficients
     pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
     pol = np.poly1d(pol_cs)  # build polynomial as function
     pol_ys = [pol(x) for x in pol_xs]  # compute polys
+
+    del_idx = []
+    for i in range(len(pol_xs)):
+        if pol_xs[i] < 0 or pol_ys[i] < 0 or pol_xs[i] > 1 or pol_ys[i] > 1:
+            del_idx.append(i)
+
+    pol_xs = [x for x in pol_xs if list(pol_xs).index(x) not in del_idx]
+    pol_ys = [y for y in pol_ys if list(pol_ys).index(y) not in del_idx]
 
     # Compute are under the curve of polynomial
     auc_test_score = auc(pol_xs, pol_ys)
