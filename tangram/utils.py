@@ -438,6 +438,19 @@ def eval_metric(df_all_genes, test_genes=None):
     pol = np.poly1d(pol_cs)  # build polynomial as function
     pol_ys = [pol(x) for x in pol_xs]  # compute polys
 
+    # if real root when y = 0, add point (x, 0):
+    roots = pol.r
+    root = None
+    for i in range(len(roots)):
+        if np.isreal(roots[i]):
+            root = roots[i]
+            break
+
+    if root is not None:
+        pol_xs = np.append(pol_xs, root)
+        pol_ys = np.append(pol_ys, 0)
+
+    # remove point that are out of [0,1]
     del_idx = []
     for i in range(len(pol_xs)):
         if pol_xs[i] < 0 or pol_ys[i] < 0 or pol_xs[i] > 1 or pol_ys[i] > 1:
@@ -447,7 +460,7 @@ def eval_metric(df_all_genes, test_genes=None):
     pol_ys = [y for y in pol_ys if list(pol_ys).index(y) not in del_idx]
 
     # Compute are under the curve of polynomial
-    auc_test_score = auc(pol_xs, pol_ys)
+    auc_test_score = np.real(auc(pol_xs, pol_ys))
 
     metric_dict = {
         "avg_test_score": test_score_avg,
