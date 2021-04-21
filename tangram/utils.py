@@ -391,7 +391,9 @@ def eval_metric(df_all_genes, test_genes=None):
         test_genes = np.unique(test_genes)
 
     else:
-        test_genes = [df_all_genes[df_all_genes["is_training"] == False].index.values]
+        test_genes = list(
+            set(df_all_genes[df_all_genes["is_training"] == False].index.values)
+        )
 
     # calculate:
     test_gene_scores = df_all_genes.loc[test_genes]["score"]

@@ -32,6 +32,6 @@ setuptools.setup(
         "scanpy",
         "scikit-learn",
     ],
-    extra_require={"experiment_logging": ["comet_ml"]},
+    extras_require={"experiment_logging": ["comet_ml"]},
 )
 
