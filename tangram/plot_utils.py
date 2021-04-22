@@ -138,6 +138,7 @@ def plot_cell_annotation(
     suptitle_add=False,
     robust=False,
     perc=0,
+    invert_y=True,
 ):
     """
         Transfer an annotation for a single cell dataset onto space, and visualize
@@ -206,6 +207,9 @@ def plot_cell_annotation(
         axs_f[index].set_aspect(1)
         axs_f[index].set_title(ann)
 
+        if invert_y is True:
+            axs_f[index].invert_yaxis()
+
     if suptitle_add is True:
         fig.suptitle(annotation)
 
@@ -221,6 +225,7 @@ def plot_genes(
     cmap="inferno",
     robust=False,
     perc=0,
+    invert_y=True,
 ):
     """
     Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
@@ -292,6 +297,10 @@ def plot_genes(
         axs[ix, 1].scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
         axs[ix, 1].set_title(gene + " (predicted)")
         axs[ix, 1].axis("off")
+
+        if invert_y is True:
+            axs[ix, 0].invert_yaxis()
+            axs[ix, 1].invert_yaxis()
 
 
 def quick_plot_gene(
