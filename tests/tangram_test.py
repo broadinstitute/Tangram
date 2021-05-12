@@ -15,21 +15,11 @@ import pytest
 
 
 @pytest.fixture
-def ad_sc():
+def adatas():
     ad_sc = sc.read_h5ad("test_data/test_ad_sc_readytomap.h5ad")
-    return ad_sc
-
-
-# test data
-
-
-@pytest.fixture
-def ad_sp():
     ad_sp = sc.read_h5ad("test_data/test_ad_sp_readytomap.h5ad")
-    return ad_sp
-
-
-# test data
+    tg.pp_adatas(ad_sc, ad_sp)
+    return (ad_sc, ad_sp)
 
 
 @pytest.fixture
@@ -39,9 +29,6 @@ def ad_sc_mock():
     var = pd.DataFrame(index=["gene_a", "gene_b", "gene_d"])
     ad_sc_mock = sc.AnnData(X=X, obs=obs, var=var)
     return ad_sc_mock
-
-
-# test data
 
 
 @pytest.fixture
@@ -61,7 +48,7 @@ def ad_sp_mock():
 def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
     new_adata_1, new_adata_2 = tg.pp_adatas(ad_sc_mock, ad_sp_mock, genes)
 
-    assert new_adata_2.var.index.equals(new_adata_1.var.index)
+    assert "training_genes" in new_adata_2.uns.keys()
     assert new_adata_1.X.any(axis=0).all() and new_adata_2.X.any(axis=0).all()
     assert "rna_count_based_density" in new_adata_2.obs.keys()
 
@@ -92,8 +79,7 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
     ],
 )
 def test_map_cells_to_space(
-    ad_sc,
-    ad_sp,
+    adatas,
     mode,
     cluster_label,
     lambda_g1,
@@ -106,8 +92,8 @@ def test_map_cells_to_space(
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
-        adata_cells=ad_sc,
-        adata_space=ad_sp,
+        adata_cells=adatas[0],
+        adata_space=adatas[1],
         device="cpu",
         mode=mode,
         cluster_label=cluster_label,
@@ -153,13 +139,13 @@ def test_map_cells_to_space(
     ],
 )
 def test_invalid_map_cells_to_space(
-    ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e
+    adatas, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale, e
 ):
     with pytest.raises(ValueError) as exc_info:
 
         tg.map_cells_to_space(
-            adata_cells=ad_sc,
-            adata_space=ad_sp,
+            adata_cells=adatas[0],
+            adata_space=adatas[1],
             device="cpu",
             mode=mode,
             cluster_label=cluster_label,
@@ -191,13 +177,13 @@ def test_invalid_map_cells_to_space(
     ],
 )
 def test_train_score_match(
-    ad_sc, ad_sp, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale
+    adatas, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale
 ):
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
-        adata_cells=ad_sc,
-        adata_space=ad_sp,
+        adata_cells=adatas[0],
+        adata_space=adatas[1],
         device="cpu",
         mode=mode,
         cluster_label=cluster_label,
@@ -213,9 +199,9 @@ def test_train_score_match(
     # call project_genes to project input ad_sc data to ad_ge spatial data
     # with ad_map
     ad_ge = tg.project_genes(
-        adata_map=ad_map, adata_sc=ad_sc, cluster_label=cluster_label, scale=scale
+        adata_map=ad_map, adata_sc=adatas[0], cluster_label=cluster_label, scale=scale
     )
-    df_all_genes = tg.compare_spatial_geneexp(ad_ge, ad_sp)
+    df_all_genes = tg.compare_spatial_geneexp(ad_ge, adatas[1])
 
     avg_score_df = df_all_genes["score"].mean()
     avg_score_train_hist = list(ad_map.uns["training_history"]["main_loss"])[-1]

@@ -19,54 +19,49 @@ from . import utils as ut
 logging.getLogger().setLevel(logging.INFO)
 
 
-def pp_adatas(adata_1, adata_2, genes=None):
+def pp_adatas(adata_sc, adata_sp, genes=None):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
     - Remove genes that all entries are zero
-    - Subset the AnnDatas to `genes` (non-shared genes are removed).
-    - Re-order genes in `adata_2` so that they are consistent with those in `adata_1`.
-    :param adata_1:
-    :param adata_2:
-    :param genes:
-    List of genes to use. If `None`, all genes are used.
+    - Find the intersection between adata_sc, adata_sp and given marker gene list, save the intersected markers in two adatas
+    - Calculate rna_count_based density priors and save it with adata_sp
+    :param adata_sc: 
+    :param adata_sp:
+    :param genes: List of genes to use. If `None`, all genes are used.
     :return:
     """
-    # adata_1 = adata_1.copy()
-    # adata_2 = adata_2.copy()
 
     # put all var index to lower case to align
-    adata_1.var.index = [g.lower() for g in adata_1.var.index]
-    adata_2.var.index = [g.lower() for g in adata_2.var.index]
+    adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
+    adata_sp.var.index = [g.lower() for g in adata_sp.var.index]
 
-    adata_1.var_names_make_unique()
-    adata_2.var_names_make_unique()
+    adata_sc.var_names_make_unique()
+    adata_sp.var_names_make_unique()
 
     # remove all-zero-valued genes
-    sc.pp.filter_genes(adata_1, min_cells=1)
-    sc.pp.filter_genes(adata_2, min_cells=1)
+    sc.pp.filter_genes(adata_sc, min_cells=1)
+    sc.pp.filter_genes(adata_sp, min_cells=1)
 
     if genes is None:
         # Use all genes
-        genes = [g.lower() for g in adata_1.var.index]
+        genes = [g.lower() for g in adata_sc.var.index]
     else:
         genes = list(g.lower() for g in genes)
 
     # Refine `marker_genes` so that they are shared by both adatas
-    genes = list(set(genes) & set(adata_1.var.index) & set(adata_2.var.index))
-    logging.info(f"{len(genes)} marker genes shared by AnnDatas.")
+    genes = list(set(genes) & set(adata_sc.var.index) & set(adata_sp.var.index))
+    logging.info(f"{len(genes)} shared marker genes.")
 
-    # Subset adatas on marker genes
-    adata_1 = adata_1[:, genes]
-    adata_2 = adata_2[:, genes]
+    adata_sc.uns["training_genes"] = genes
+    adata_sp.uns["training_genes"] = genes
 
     # Calculate density prior as % of rna molecule count
-    rna_count_per_spot = adata_2.X.sum(axis=1)
-    adata_2.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
+    rna_count_per_spot = adata_sp.X.sum(axis=1)
+    adata_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
         rna_count_per_spot
     )
 
-    assert adata_2.var.index.equals(adata_1.var.index)
-    return adata_1, adata_2
+    return adata_sc, adata_sp
 
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
@@ -83,7 +78,7 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
         raise ValueError("Provided label must belong to adata.obs.")
     unique_labels = value_counts.index
     new_obs = pd.DataFrame({cluster_label: unique_labels})
-    adata_ret = sc.AnnData(obs=new_obs, var=adata.var)
+    adata_ret = sc.AnnData(obs=new_obs, var=adata.var, uns=adata.uns)
 
     X_new = np.empty((len(unique_labels), adata.shape[1]))
     for index, l in enumerate(unique_labels):
@@ -122,7 +117,7 @@ def map_cells_to_space(
     experiment=None,
 ):
     """
-        Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
+        Map single cell data (`adata_sc`) on spatial data (`adata_sp`). If `adata_map`
         is provided, resume from previous mapping.
         Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.
@@ -145,10 +140,6 @@ def map_cells_to_space(
     if mode not in ["clusters", "cells"]:
         raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
-    if adata_cells.var.index.equals(adata_space.var.index) is False:
-        logging.error("Incompatible AnnDatas. Run `pp_adatas()`.")
-        raise ValueError
-
     if mode == "clusters" and cluster_label is None:
         raise ValueError("A cluster_label must be specified if mode = clusters.")
 
@@ -158,19 +149,45 @@ def map_cells_to_space(
         )
 
     logging.info("Allocate tensors for mapping.")
+
+    # Check if training_genes key exist/is valid in adatas.uns
+    if "training_genes" not in adata_cells.uns.keys():
+        logging.error("Missing tangram parameters. Run `pp_adatas()`.")
+        raise ValueError
+
+    if "training_genes" not in adata_space.uns.keys():
+        logging.error("Missing tangram parameters. Run `pp_adatas()`.")
+        raise ValueError
+
+    if not adata_cells.uns["training_genes"] == adata_space.uns["training_genes"]:
+        logging.error("Unmatched tangram parameters. Run `pp_adatas()`.")
+        raise ValueError
+
     # Allocate tensors (AnnData matrix can be sparse or not)
+
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells.X.toarray(), dtype="float32")
+        S = np.array(
+            adata_cells[:, adata_cells.uns["training_genes"]].X.toarray(),
+            dtype="float32",
+        )
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells.X, dtype="float32")
+        S = np.array(
+            adata_cells[:, adata_cells.uns["training_genes"]].X.toarray(),
+            dtype="float32",
+        )
     else:
         X_type = type(adata_cells.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
+
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space.X.toarray(), dtype="float32")
+        G = np.array(
+            adata_space[:, adata_space.uns["training_genes"]].toarray(), dtype="float32"
+        )
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space.X, dtype="float32")
+        G = np.array(
+            adata_space[:, adata_space.uns["training_genes"]].X, dtype="float32"
+        )
     else:
         X_type = type(adata_space.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
