@@ -167,6 +167,8 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     """
 
     ad_ge, ad_sp = mu.pp_adatas(ad_ge, ad_sp)
+    ad_ge = ad_ge[:, ad_ge.uns["training_genes"]]
+    ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
     annotate_gene_sparsity(ad_sp)
 
     assert ad_ge.var.index.equals(ad_sp.var.index)
@@ -197,6 +199,8 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
 
     if ad_sc is not None:
         ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
+        ad_sc = ad_sc[:, ad_sc.uns["training_genes"]]
+        ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
         annotate_gene_sparsity(ad_sc)
 
         df_g = df_g.merge(

@@ -89,6 +89,8 @@ def plot_gene_sparsity(
     """
     logging.info("Pre-processing AnnDatas...")
     adata_1, adata_2 = mu.pp_adatas(adata_1, adata_2, genes=genes)
+    adata_1 = adata_1[:, adata_1.uns["training_genes"]]
+    adata_2 = adata_2[:, adata_2.uns["training_genes"]]
     logging.info("Annotating sparsity...")
     ut.annotate_gene_sparsity(adata_1)
     ut.annotate_gene_sparsity(adata_2)
@@ -425,6 +427,8 @@ def plot_cv_test_scores(ad_sc, ad_sp, df_gene_score, bins="auto", alpha=0.7):
     """
 
     ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
+    ad_sc = ad_sc[:, ad_sc.uns["training_genes"]]
+    ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
 
     ut.annotate_gene_sparsity(ad_sc)
     ut.annotate_gene_sparsity(ad_sp)
