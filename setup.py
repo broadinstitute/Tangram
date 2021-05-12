@@ -2,15 +2,16 @@
 
 import setuptools
 
-with open("README.md","r", encoding="utf-8") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 d = {}
-with open('tangram/_version.py') as f:  exec(f.read(), d)
+with open("tangram/_version.py") as f:
+    exec(f.read(), d)
 
 setuptools.setup(
     name="tangram-sc",
-    version=d['__version__'],
+    version=d["__version__"],
     author="Tommaso Biancalani, Gabriele Scalia",
     author_email="tommaso.biancalani@gmail.com",
     description="Spatial alignment of single cell transcriptomic data.",
@@ -18,11 +19,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/broadinstitute/Tangram",
     packages=setuptools.find_namespace_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3.6",
-        "Operating System :: MacOS",
-    ],
-    python_requires='>=3.6',
+    classifiers=["Programming Language :: Python :: 3.6", "Operating System :: MacOS",],
+    python_requires=">=3.6",
     install_requires=[
         "pip",
         "torch",
@@ -32,10 +30,8 @@ setuptools.setup(
         "matplotlib",
         "seaborn",
         "scanpy",
-        "comet_ml",
-        "scikit-learn"
-    ]
+        "scikit-learn",
+    ],
+    extras_require={"experiment_logging": ["comet_ml"]},
 )
-
-
 

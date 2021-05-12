@@ -18,6 +18,7 @@ from . import utils as ut
 
 logging.getLogger().setLevel(logging.INFO)
 
+
 def pp_adatas(adata_1, adata_2, genes=None):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
@@ -32,7 +33,7 @@ def pp_adatas(adata_1, adata_2, genes=None):
     """
     # adata_1 = adata_1.copy()
     # adata_2 = adata_2.copy()
-    
+
     # put all var index to lower case to align
     adata_1.var.index = [g.lower() for g in adata_1.var.index]
     adata_2.var.index = [g.lower() for g in adata_2.var.index]
@@ -49,10 +50,10 @@ def pp_adatas(adata_1, adata_2, genes=None):
         genes = [g.lower() for g in adata_1.var.index]
     else:
         genes = list(g.lower() for g in genes)
-    
+
     # Refine `marker_genes` so that they are shared by both adatas
     genes = list(set(genes) & set(adata_1.var.index) & set(adata_2.var.index))
-    logging.info(f'{len(genes)} marker genes shared by AnnDatas.')
+    logging.info(f"{len(genes)} marker genes shared by AnnDatas.")
 
     # Subset adatas on marker genes
     adata_1 = adata_1[:, genes]
@@ -60,10 +61,13 @@ def pp_adatas(adata_1, adata_2, genes=None):
 
     # Calculate density prior as % of rna molecule count
     rna_count_per_spot = adata_2.X.sum(axis=1)
-    adata_2.obs['rna_count_based_density'] = rna_count_per_spot/np.sum(rna_count_per_spot)
+    adata_2.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
+        rna_count_per_spot
+    )
 
     assert adata_2.var.index.equals(adata_1.var.index)
     return adata_1, adata_2
+
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """
@@ -76,7 +80,7 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
     try:
         value_counts = adata.obs[cluster_label].value_counts(normalize=True)
     except KeyError as e:
-        raise ValueError('Provided label must belong to adata.obs.')
+        raise ValueError("Provided label must belong to adata.obs.")
     unique_labels = value_counts.index
     new_obs = pd.DataFrame({cluster_label: unique_labels})
     adata_ret = sc.AnnData(obs=new_obs, var=adata.var)
@@ -90,17 +94,33 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
     adata_ret.X = X_new
 
     if add_density:
-        adata_ret.obs['cluster_density'] = adata_ret.obs[cluster_label].map(lambda i: value_counts[i])
+        adata_ret.obs["cluster_density"] = adata_ret.obs[cluster_label].map(
+            lambda i: value_counts[i]
+        )
 
     return adata_ret
 
-def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
-                       device='cuda:0', learning_rate=0.1, num_epochs=1000, d=None, 
-                       cluster_label=None, scale=True, lambda_d=0, lambda_g1=1, lambda_g2=0, lambda_r=0,
-                       random_state=None, verbose=True,
-                       density_prior=None,
-                       experiment=None,
-                       ):
+
+def map_cells_to_space(
+    adata_cells,
+    adata_space,
+    mode="cells",
+    adata_map=None,
+    device="cuda:0",
+    learning_rate=0.1,
+    num_epochs=1000,
+    d=None,
+    cluster_label=None,
+    scale=True,
+    lambda_d=0,
+    lambda_g1=1,
+    lambda_g2=0,
+    lambda_r=0,
+    random_state=None,
+    verbose=True,
+    density_prior=None,
+    experiment=None,
+):
     """
         Map single cell data (`adata_1`) on spatial data (`adata_2`). If `adata_map`
         is provided, resume from previous mapping.
@@ -117,71 +137,73 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
 
     # check invalid values for arguments
     if lambda_g1 == 0:
-        raise ValueError('lambda_g1 cannot be 0.')
- 
-    if density_prior is not None and lambda_d==0:
-        raise ValueError('When density_prior is not None, lambda_d cannot be 0.')
+        raise ValueError("lambda_g1 cannot be 0.")
 
-    if mode not in ['clusters', 'cells']:
+    if density_prior is not None and lambda_d == 0:
+        raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
+
+    if mode not in ["clusters", "cells"]:
         raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
     if adata_cells.var.index.equals(adata_space.var.index) is False:
-        logging.error('Incompatible AnnDatas. Run `pp_adatas()`.')
+        logging.error("Incompatible AnnDatas. Run `pp_adatas()`.")
         raise ValueError
-    
-    if mode == 'clusters' and cluster_label is None:
-        raise ValueError('A cluster_label must be specified if mode = clusters.')
 
-    if mode == 'clusters':
-        adata_cells = adata_to_cluster_expression(adata_cells, cluster_label, scale, add_density=True)
+    if mode == "clusters" and cluster_label is None:
+        raise ValueError("A cluster_label must be specified if mode = clusters.")
 
-    logging.info('Allocate tensors for mapping.')
+    if mode == "clusters":
+        adata_cells = adata_to_cluster_expression(
+            adata_cells, cluster_label, scale, add_density=True
+        )
+
+    logging.info("Allocate tensors for mapping.")
     # Allocate tensors (AnnData matrix can be sparse or not)
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells.X.toarray(), dtype='float32')
+        S = np.array(adata_cells.X.toarray(), dtype="float32")
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells.X, dtype='float32')
+        S = np.array(adata_cells.X, dtype="float32")
     else:
         X_type = type(adata_cells.X)
-        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
+        logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space.X.toarray(), dtype='float32')
+        G = np.array(adata_space.X.toarray(), dtype="float32")
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space.X, dtype='float32')
+        G = np.array(adata_space.X, dtype="float32")
     else:
         X_type = type(adata_space.X)
-        logging.error('AnnData X has unrecognized type: {}'.format(X_type))
+        logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
 
     if not S.any(axis=0).all() or not G.any(axis=0).all():
-        raise ValueError('Genes with all zero values detected. Run `pp_adatas()`.')
+        raise ValueError("Genes with all zero values detected. Run `pp_adatas()`.")
 
     # define density_prior if 'rna_count_based' is passed to the density_prior argument:
-    if density_prior == 'rna_count_based':
-        density_prior = adata_space.obs['rna_count_based_density']
+    if density_prior == "rna_count_based":
+        density_prior = adata_space.obs["rna_count_based_density"]
 
     # define density_prior if 'uniform' is passed to the density_prior argument:
-    elif density_prior == 'uniform':
-        density_prior = np.ones(G.shape[0])/G.shape[0]
+    elif density_prior == "uniform":
+        density_prior = np.ones(G.shape[0]) / G.shape[0]
 
-    if mode == 'cells':
+    if mode == "cells":
         d = density_prior
 
-    if mode == 'clusters':
+    if mode == "clusters":
         d = density_prior
         if d is None:
-            d = np.ones(G.shape[0])/G.shape[0]
+            d = np.ones(G.shape[0]) / G.shape[0]
 
     # Choose device
     device = torch.device(device)  # for gpu
 
     hyperparameters = {
-            'lambda_d': lambda_d,  # KL (ie density) term
-            'lambda_g1': lambda_g1,  # gene-voxel cos sim
-            'lambda_g2': lambda_g2,  # voxel-gene cos sim
-            'lambda_r': lambda_r,  # regularizer: penalize entropy
-        }
+        "lambda_d": lambda_d,  # KL (ie density) term
+        "lambda_g1": lambda_g1,  # gene-voxel cos sim
+        "lambda_g2": lambda_g2,  # voxel-gene cos sim
+        "lambda_r": lambda_r,  # regularizer: penalize entropy
+    }
 
     # # Init hyperparameters
     # if mode == 'cells':
@@ -203,49 +225,59 @@ def map_cells_to_space(adata_cells, adata_space, mode='cells', adata_map=None,
     #     raise NotImplementedError
 
     # Train Tangram
-    logging.info('Begin training with {} genes in {} mode...'.format(len(adata_cells.var.index), mode))
+    logging.info(
+        "Begin training with {} genes in {} mode...".format(
+            len(adata_cells.var.index), mode
+        )
+    )
     mapper = mo.Mapper(
-        S=S, G=G, d=d, device=device, adata_map=adata_map,
+        S=S,
+        G=G,
+        d=d,
+        device=device,
+        adata_map=adata_map,
         random_state=random_state,
         **hyperparameters,
     )
     # TODO `train` should return the loss function
     if verbose:
-        print_each=100
+        print_each = 100
     else:
-        print_each=None
+        print_each = None
 
     mapping_matrix, training_history = mapper.train(
-            learning_rate=learning_rate,
-            num_epochs=num_epochs,
-            print_each=print_each,
-            experiment=experiment,
+        learning_rate=learning_rate,
+        num_epochs=num_epochs,
+        print_each=print_each,
+        experiment=experiment,
     )
 
-    logging.info('Saving results..')
-    adata_map = sc.AnnData(X=mapping_matrix,
-                           obs=adata_cells.obs.copy(),
-                           var=adata_space.obs.copy())
+    logging.info("Saving results..")
+    adata_map = sc.AnnData(
+        X=mapping_matrix, obs=adata_cells.obs.copy(), var=adata_space.obs.copy()
+    )
 
     # Annotate cosine similarity of each training gene
-    G_predicted = (adata_map.X.T @ S)
+    G_predicted = adata_map.X.T @ S
     cos_sims = []
     for v1, v2 in zip(G.T, G_predicted.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
     training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
-    df_cs = pd.DataFrame(cos_sims, training_genes, columns=['train_score'])
-    df_cs = df_cs.sort_values(by='train_score', ascending=False)
-    adata_map.uns['train_genes_df'] = df_cs
+    df_cs = pd.DataFrame(cos_sims, training_genes, columns=["train_score"])
+    df_cs = df_cs.sort_values(by="train_score", ascending=False)
+    adata_map.uns["train_genes_df"] = df_cs
 
     # Annotate sparsity of each training genes
     ut.annotate_gene_sparsity(adata_cells)
     ut.annotate_gene_sparsity(adata_space)
-    adata_map.uns['train_genes_df']['sparsity_sc'] = adata_cells.var.sparsity
-    adata_map.uns['train_genes_df']['sparsity_sp'] = adata_space.var.sparsity
-    adata_map.uns['train_genes_df']['sparsity_diff'] = adata_space.var.sparsity - adata_cells.var.sparsity
+    adata_map.uns["train_genes_df"]["sparsity_sc"] = adata_cells.var.sparsity
+    adata_map.uns["train_genes_df"]["sparsity_sp"] = adata_space.var.sparsity
+    adata_map.uns["train_genes_df"]["sparsity_diff"] = (
+        adata_space.var.sparsity - adata_cells.var.sparsity
+    )
 
-    adata_map.uns['training_history'] = training_history
+    adata_map.uns["training_history"] = training_history
 
     return adata_map
 
