@@ -61,7 +61,7 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
         rna_count_per_spot
     )
 
-    return adata_sc, adata_sp
+    # return adata_sc, adata_sp
 
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
@@ -148,46 +148,36 @@ def map_cells_to_space(
             adata_cells, cluster_label, scale, add_density=True
         )
 
-    logging.info("Allocate tensors for mapping.")
-
     # Check if training_genes key exist/is valid in adatas.uns
     if "training_genes" not in adata_cells.uns.keys():
-        logging.error("Missing tangram parameters. Run `pp_adatas()`.")
-        raise ValueError
+        raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
     if "training_genes" not in adata_space.uns.keys():
-        logging.error("Missing tangram parameters. Run `pp_adatas()`.")
-        raise ValueError
+        raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
-    if not adata_cells.uns["training_genes"] == adata_space.uns["training_genes"]:
-        logging.error("Unmatched tangram parameters. Run `pp_adatas()`.")
-        raise ValueError
+    assert list(adata_space.uns["training_genes"]) == list(
+        adata_cells.uns["training_genes"]
+    )
 
+    # get traiing_genes
+    training_genes = adata_cells.uns["training_genes"]
+
+    logging.info("Allocate tensors for mapping.")
     # Allocate tensors (AnnData matrix can be sparse or not)
 
     if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(
-            adata_cells[:, adata_cells.uns["training_genes"]].X.toarray(),
-            dtype="float32",
-        )
+        S = np.array(adata_cells[:, training_genes].X.toarray(), dtype="float32",)
     elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(
-            adata_cells[:, adata_cells.uns["training_genes"]].X.toarray(),
-            dtype="float32",
-        )
+        S = np.array(adata_cells[:, training_genes].X.toarray(), dtype="float32",)
     else:
         X_type = type(adata_cells.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
 
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(
-            adata_space[:, adata_space.uns["training_genes"]].toarray(), dtype="float32"
-        )
+        G = np.array(adata_space[:, training_genes].toarray(), dtype="float32")
     elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(
-            adata_space[:, adata_space.uns["training_genes"]].X, dtype="float32"
-        )
+        G = np.array(adata_space[:, training_genes].X, dtype="float32")
     else:
         X_type = type(adata_space.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
@@ -243,9 +233,7 @@ def map_cells_to_space(
 
     # Train Tangram
     logging.info(
-        "Begin training with {} genes in {} mode...".format(
-            len(adata_cells.var.index), mode
-        )
+        "Begin training with {} genes in {} mode...".format(len(training_genes), mode)
     )
     mapper = mo.Mapper(
         S=S,
@@ -271,7 +259,9 @@ def map_cells_to_space(
 
     logging.info("Saving results..")
     adata_map = sc.AnnData(
-        X=mapping_matrix, obs=adata_cells.obs.copy(), var=adata_space.obs.copy()
+        X=mapping_matrix,
+        obs=adata_cells[:, training_genes].obs.copy(),
+        var=adata_space[:, training_genes].obs.copy(),
     )
 
     # Annotate cosine similarity of each training gene
@@ -280,7 +270,7 @@ def map_cells_to_space(
     for v1, v2 in zip(G.T, G_predicted.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
-    training_genes = list(np.reshape(adata_cells.var.index.values, (-1,)))
+
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=["train_score"])
     df_cs = df_cs.sort_values(by="train_score", ascending=False)
     adata_map.uns["train_genes_df"] = df_cs
@@ -288,10 +278,15 @@ def map_cells_to_space(
     # Annotate sparsity of each training genes
     ut.annotate_gene_sparsity(adata_cells)
     ut.annotate_gene_sparsity(adata_space)
-    adata_map.uns["train_genes_df"]["sparsity_sc"] = adata_cells.var.sparsity
-    adata_map.uns["train_genes_df"]["sparsity_sp"] = adata_space.var.sparsity
+    adata_map.uns["train_genes_df"]["sparsity_sc"] = adata_cells[
+        :, training_genes
+    ].var.sparsity
+    adata_map.uns["train_genes_df"]["sparsity_sp"] = adata_space[
+        :, training_genes
+    ].var.sparsity
     adata_map.uns["train_genes_df"]["sparsity_diff"] = (
-        adata_space.var.sparsity - adata_cells.var.sparsity
+        adata_space[:, training_genes].var.sparsity
+        - adata_cells[:, training_genes].var.sparsity
     )
 
     adata_map.uns["training_history"] = training_history

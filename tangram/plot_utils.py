@@ -89,13 +89,14 @@ def plot_gene_sparsity(
     """
     logging.info("Pre-processing AnnDatas...")
     adata_1, adata_2 = mu.pp_adatas(adata_1, adata_2, genes=genes)
-    adata_1 = adata_1[:, adata_1.uns["training_genes"]]
-    adata_2 = adata_2[:, adata_2.uns["training_genes"]]
+    assert adata_1.uns["training_genes"] == adata_2.uns["training_genes"]
+    training_genes = adata_1.uns["training_genes"]
+
     logging.info("Annotating sparsity...")
     ut.annotate_gene_sparsity(adata_1)
     ut.annotate_gene_sparsity(adata_2)
-    xs = adata_1.var["sparsity"].values
-    ys = adata_2.var["sparsity"].values
+    xs = adata_1[:, training_genes].var["sparsity"].values
+    ys = adata_2[:, training_genes].var["sparsity"].values
     fig, ax = plt.subplots(1, 1)
     ax.set_aspect(1)
     ax.set_xlabel("sparsity (" + xlabel + ")")
@@ -271,12 +272,17 @@ def plot_genes(
     #### Colorbar
 
     fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes) * 3))
+
     for ix, gene in enumerate(genes):
+        if gene not in adata_measured.var.index:
+            vs = np.zeros_like(np.array(adata_measured[:, 0].X).flatten())
+        else:
+            vs = np.array(adata_measured[:, gene].X).flatten()
+
         xs, ys, vs = ordered_predictions(
-            adata_measured.obs[x],
-            adata_measured.obs[y],
-            np.array(adata_measured[:, gene].X).flatten(),
+            adata_measured.obs[x], adata_measured.obs[y], vs,
         )
+
         if log:
             vs = np.log(1 + np.asarray(vs))
         axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
@@ -427,8 +433,8 @@ def plot_cv_test_scores(ad_sc, ad_sp, df_gene_score, bins="auto", alpha=0.7):
     """
 
     ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
-    ad_sc = ad_sc[:, ad_sc.uns["training_genes"]]
-    ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
+    assert adata_1.uns["training_genes"] == adata_2.uns["training_genes"]
+    training_genes = adata_1.uns["training_genes"]
 
     ut.annotate_gene_sparsity(ad_sc)
     ut.annotate_gene_sparsity(ad_sp)
@@ -436,9 +442,12 @@ def plot_cv_test_scores(ad_sc, ad_sp, df_gene_score, bins="auto", alpha=0.7):
     df = pd.concat(
         [
             df_gene_score["test_score"],
-            ad_sc.var["sparsity"],
-            ad_sp.var["sparsity"],
-            (ad_sp.var["sparsity"] - ad_sc.var["sparsity"]),
+            ad_sc[:, training_genes].var["sparsity"],
+            ad_sp[:, training_genes].var["sparsity"],
+            (
+                ad_sp[:, training_genes].var["sparsity"]
+                - ad_sc[:, training_genes].var["sparsity"]
+            ),
         ],
         axis=1,
     )

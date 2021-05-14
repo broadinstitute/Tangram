@@ -16,9 +16,8 @@ import pytest
 
 @pytest.fixture
 def adatas():
-    ad_sc = sc.read_h5ad("test_data/test_ad_sc_readytomap.h5ad")
-    ad_sp = sc.read_h5ad("test_data/test_ad_sp_readytomap.h5ad")
-    tg.pp_adatas(ad_sc, ad_sp)
+    ad_sc = sc.read_h5ad("test_data/test_adata_sc.h5ad")
+    ad_sp = sc.read_h5ad("test_data/test_adata_sp.h5ad")
     return (ad_sc, ad_sp)
 
 
@@ -46,48 +45,31 @@ def ad_sp_mock():
 
 @pytest.mark.parametrize("genes", [(None), (["gene_a", "gene_b"]),])
 def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
-    new_adata_1, new_adata_2 = tg.pp_adatas(ad_sc_mock, ad_sp_mock, genes)
+    tg.pp_adatas(ad_sc_mock, ad_sp_mock, genes)
 
-    assert "training_genes" in new_adata_2.uns.keys()
-    assert new_adata_1.X.any(axis=0).all() and new_adata_2.X.any(axis=0).all()
-    assert "rna_count_based_density" in new_adata_2.obs.keys()
+    assert ad_sc_mock.uns["training_genes"] == ad_sp_mock.uns["training_genes"]
+    assert ad_sc_mock.X.any(axis=0).all() and ad_sp_mock.X.any(axis=0).all()
+    assert "rna_count_based_density" in ad_sp_mock.obs.keys()
 
 
 # test mapping function with different parameters
 
 
 @pytest.mark.parametrize(
-    "mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale, e",
+    "lambda_g1, lambda_g2, lambda_d, density_prior, scale, e",
     [
-        ("clusters", "subclass", 1, 0, 0, None, True, np.float32(0.00033864976)),
-        ("clusters", "subclass", 1, 0, 0, None, False, np.float32(1.0042528e-05)),
-        ("clusters", "subclass", 1, 1, 0, None, True, np.float32(1.7422922e-06)),
-        ("clusters", "subclass", 1, 1, 0, None, False, np.float32(6.644411e-06)),
-        ("clusters", "subclass", 1, 1, 1, None, True, np.float32(0.0013598711)),
-        ("clusters", "subclass", 1, 1, 1, None, False, np.float32(4.3795535e-06)),
-        (
-            "clusters",
-            "subclass",
-            1,
-            0,
-            1,
-            "rna_count_based",
-            True,
-            np.float32(0.0004370494),
-        ),
-        ("clusters", "subclass", 1, 0, 1, "uniform", True, np.float32(0.0004415631)),
+        (1, 0, 0, None, True, np.float32(0.00223)),
+        (1, 0, 0, None, False, np.float32(0.004)),
+        (1, 1, 0, None, True, np.float32(0.00273)),
+        (1, 1, 0, None, False, np.float32(0.00358)),
+        (1, 1, 1, None, True, np.float32(0.00276)),
+        (1, 1, 1, None, False, np.float32(1e-05)),
+        (1, 0, 1, "rna_count_based", True, np.float32(0.00204)),
+        (1, 0, 1, "uniform", True, np.float32(0.00255)),
     ],
 )
 def test_map_cells_to_space(
-    adatas,
-    mode,
-    cluster_label,
-    lambda_g1,
-    lambda_g2,
-    lambda_d,
-    density_prior,
-    scale,
-    e,
+    adatas, lambda_g1, lambda_g2, lambda_d, density_prior, scale, e,
 ):
 
     # mapping with defined random_state
@@ -95,8 +77,8 @@ def test_map_cells_to_space(
         adata_cells=adatas[0],
         adata_space=adatas[1],
         device="cpu",
-        mode=mode,
-        cluster_label=cluster_label,
+        mode="clusters",
+        cluster_label="subclass_label",
         lambda_g1=lambda_g1,
         lambda_g2=lambda_g2,
         lambda_d=lambda_d,
@@ -165,28 +147,25 @@ def test_invalid_map_cells_to_space(
 
 
 @pytest.mark.parametrize(
-    "mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale",
+    "lambda_g1, lambda_g2, lambda_d, scale",
     [
-        ("clusters", "subclass", 1, 0, 0, True),
-        ("clusters", "subclass", 1, 0, 0, False),
-        ("clusters", "subclass", 1, 1, 0, True),
-        ("clusters", "subclass", 1, 1, 0, False),
-        ("clusters", "subclass", 1, 0, 1, True),
-        ("clusters", "subclass", 1, 0, 1, False),
-        # ('cells', None, 1, 0, 0, True), #this would take too long
+        (1, 0, 0, True),
+        (1, 0, 0, False),
+        (1, 1, 0, True),
+        (1, 1, 0, False),
+        (1, 0, 1, True),
+        (1, 0, 1, False),
     ],
 )
-def test_train_score_match(
-    adatas, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, scale
-):
+def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
         adata_cells=adatas[0],
         adata_space=adatas[1],
         device="cpu",
-        mode=mode,
-        cluster_label=cluster_label,
+        mode="clusters",
+        cluster_label="subclass_label",
         lambda_g1=lambda_g1,
         lambda_g2=lambda_g2,
         lambda_d=lambda_d,
@@ -199,7 +178,10 @@ def test_train_score_match(
     # call project_genes to project input ad_sc data to ad_ge spatial data
     # with ad_map
     ad_ge = tg.project_genes(
-        adata_map=ad_map, adata_sc=adatas[0], cluster_label=cluster_label, scale=scale
+        adata_map=ad_map,
+        adata_sc=adatas[0],
+        cluster_label="subclass_label",
+        scale=scale,
     )
     df_all_genes = tg.compare_spatial_geneexp(ad_ge, adatas[1])
 

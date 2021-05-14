@@ -135,11 +135,10 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
         expression from the single cell data.
     """
 
-    adata_sc = adata_sc.copy()
-
     # put all var index to lower case to align
     adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
 
+    # make varnames unique for adata_sc
     adata_sc.var_names_make_unique()
 
     # remove all-zero-valued genes
@@ -166,45 +165,44 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
          Returns a DataFrame with similarity scores between genes.
     """
 
-    ad_ge, ad_sp = mu.pp_adatas(ad_ge, ad_sp)
-    ad_ge = ad_ge[:, ad_ge.uns["training_genes"]]
-    ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
-    annotate_gene_sparsity(ad_sp)
+    mu.pp_adatas(ad_ge, ad_sp)
 
-    assert ad_ge.var.index.equals(ad_sp.var.index)
+    overlap_genes = ad_ge.uns["training_genes"]
+
+    annotate_gene_sparsity(ad_sp)
 
     # Annotate cosine similarity of each training gene
     cos_sims = []
 
     if hasattr(ad_ge.X, "toarray"):
-        X_1 = ad_ge.X.toarray()
+        X_1 = ad_ge[:, overlap_genes].X.toarray()
     else:
-        X_1 = ad_ge.X
+        X_1 = ad_ge[:, overlap_genes].X
     if hasattr(ad_sp.X, "toarray"):
-        X_2 = ad_sp.X.toarray()
+        X_2 = ad_sp[:, overlap_genes].X.toarray()
     else:
-        X_2 = ad_sp.X
+        X_2 = ad_sp[:, overlap_genes].X
 
     for v1, v2 in zip(X_1.T, X_2.T):
         norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
         cos_sims.append((v1 @ v2) / norm_sq)
 
-    genes = list(np.reshape(ad_ge.var.index.values, (-1,)))
-    df_g = pd.DataFrame(cos_sims, genes, columns=["score"])
+    df_g = pd.DataFrame(cos_sims, overlap_genes, columns=["score"])
     for adata in [ad_ge, ad_sp]:
         if "is_training" in adata.var.keys():
             df_g["is_training"] = adata.var.is_training
 
-    df_g["sparsity_sp"] = ad_sp.var.sparsity
+    df_g["sparsity_sp"] = ad_sp[:, overlap_genes].var.sparsity
 
     if ad_sc is not None:
-        ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
-        ad_sc = ad_sc[:, ad_sc.uns["training_genes"]]
-        ad_sp = ad_sp[:, ad_sp.uns["training_genes"]]
+        mu.pp_adatas(ad_sc, ad_sp)
+        assert overlap_genes == ad_sc.uns["training_genes"]
         annotate_gene_sparsity(ad_sc)
 
         df_g = df_g.merge(
-            pd.DataFrame(ad_sc.var["sparsity"]), left_index=True, right_index=True,
+            pd.DataFrame(ad_sc[:, overlap_genes].var["sparsity"]),
+            left_index=True,
+            right_index=True,
         )
         df_g.rename({"sparsity": "sparsity_sc"}, inplace=True, axis="columns")
         df_g["sparsity_diff"] = df_g["sparsity_sp"] - df_g["sparsity_sc"]
