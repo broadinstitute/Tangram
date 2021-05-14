@@ -3,6 +3,7 @@ import tangram as tg
 import numpy as np
 import pandas as pd
 import pytest
+from pytest import approx
 
 # to run test_tangram.py on your local machine, please set up as follow:
 # - create test environment according to environment.yml (conda create env -f environment.yml) to make sure environment matches developing environment
@@ -185,9 +186,10 @@ def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
     )
     df_all_genes = tg.compare_spatial_geneexp(ad_ge, adatas[1])
 
-    avg_score_df = df_all_genes["score"].mean()
-    avg_score_train_hist = list(ad_map.uns["training_history"]["main_loss"])[-1]
+    avg_score_df = round(df_all_genes["score"].mean(), 5)
+    avg_score_train_hist = round(
+        list(ad_map.uns["training_history"]["main_loss"])[-1], 5
+    )
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
-    # assert avg_score_df == avg_score_train_hist
-    assert round(avg_score_df, 5) == round(avg_score_train_hist, 5)
+    assert avg_score_df == approx(avg_score_train_hist)
