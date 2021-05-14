@@ -212,33 +212,45 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
 
 
 def cv_data_gen(ad_sc, ad_sp, mode="loo"):
-    """ This function generates cross validation datasets
+    """ This function generates pair of training/test gene indexes cross validation datasets
 
     Args:
         ad_sc: AnnData, single cell data
         ad_sp: AnnData, gene spatial data
-        mode: string, support 'loo' and 'kfold'
+        mode: string, support 'loo' and '10fold'
 
     """
-    genes_array = np.array(list(set(ad_sc.var.index.values)))
+
+    # Check if training_genes key exist/is valid in adatas.uns
+    if "training_genes" not in ad_sc.uns.keys():
+        raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
+
+    if "training_genes" not in ad_sp.uns.keys():
+        raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
+
+    if not list(ad_sp.uns["training_genes"]) == list(ad_sc.uns["training_genes"]):
+        raise ValueError(
+            "Unmatched training_genes field in two Anndatas. Run `pp_adatas()`."
+        )
+
+    genes_array = np.array(ad_sp.uns["training_genes"])
 
     if mode == "loo":
         cv = LeaveOneOut()
-    elif mode == "kfold":
+    elif mode == "10fold":
         cv = KFold(n_splits=10)
 
     for train_idx, test_idx in cv.split(genes_array):
         train_genes = genes_array[train_idx]
         test_genes = list(genes_array[test_idx])
-        ad_sc_train, ad_sp_train = ad_sc[:, train_genes], ad_sp[:, train_genes]
-        yield ad_sc_train, ad_sp_train, test_genes
+        yield train_genes, test_genes
 
 
 def cross_val(
     ad_sc,
     ad_sp,
     cluster_label=None,
-    mapping_mode="clusters",
+    mode="clusters",
     scale=True,
     lambda_d=0,
     lambda_g1=1,
@@ -247,7 +259,7 @@ def cross_val(
     num_epochs=1000,
     device="cpu",
     learning_rate=0.1,
-    mode="loo",
+    cv_mode="loo",
     return_gene_pred=False,
     experiment=None,
     random_state=None,
@@ -282,12 +294,18 @@ def cross_val(
     test_score_list = []
     train_score_list = []
     curr_cv_set = 1
-    for ad_sc_train, ad_sp_train, test_genes in cv_data_gen(ad_sc, ad_sp, mode):
+
+    for train_genes, test_genes in cv_data_gen(ad_sc, ad_sp, cv_mode):
+        # Check if training_genes key exist/is valid in adatas.uns
+        mu.pp_adatas(ad_sc, ad_sp, train_genes)
+        assert list(ad_sp.uns["training_genes"]) == list(ad_sc.uns["training_genes"])
+        assert set(ad_sp.uns["training_genes"]) == set(train_genes)
+
         # train
         adata_map = mu.map_cells_to_space(
-            adata_cells=ad_sc_train,
-            adata_space=ad_sp_train,
-            mode=mapping_mode,
+            adata_cells=ad_sc,
+            adata_space=ad_sp,
+            mode=mode,
             device=device,
             learning_rate=learning_rate,
             num_epochs=num_epochs,
@@ -405,31 +423,10 @@ def eval_metric(df_all_genes, test_genes=None):
     test_score_avg = test_gene_scores.mean()
     train_score_avg = df_all_genes[df_all_genes["is_training"] == True]["score"].mean()
 
-    # g1 metric
-    count_test_genes = test_gene_scores.shape[0]
-    test_score_sps_sp_g1 = (
-        np.sum((test_gene_scores * (1 - test_gene_sparsity_sp))) / count_test_genes
-    )
-    test_score_sps_sc_g1 = (
-        np.sum((test_gene_scores * (1 - test_gene_sparsity_sc))) / count_test_genes
-    )
-    test_score_sps_diff_g1 = (
-        np.sum((test_gene_scores * (1 - np.abs(test_gene_sparsity_diff))))
-        / count_test_genes
-    )
-
-    # g2 metric
+    # sp sparsity weighted score
     test_score_sps_sp_g2 = np.sum(
         (test_gene_scores * (1 - test_gene_sparsity_sp))
         / (1 - test_gene_sparsity_sp).sum()
-    )
-    test_score_sps_sc_g2 = np.sum(
-        (test_gene_scores * (1 - test_gene_sparsity_sc))
-        / (1 - test_gene_sparsity_sc).sum()
-    )
-    test_score_sps_diff_g2 = np.sum(
-        (test_gene_scores * (1 - np.abs(test_gene_sparsity_diff)))
-        / (1 - np.abs(test_gene_sparsity_diff)).sum()
     )
 
     # tm metric
@@ -469,13 +466,8 @@ def eval_metric(df_all_genes, test_genes=None):
     metric_dict = {
         "avg_test_score": test_score_avg,
         "avg_train_score": train_score_avg,
-        "sp_sparsity_weighted_test_score_v1": test_score_sps_sp_g1,
-        "sc_sparsity_weighted_test_score_v1": test_score_sps_sc_g1,
-        "diff_sparsity_weighted_test_score_v1": test_score_sps_diff_g1,
-        "sp_sparsity_weighted_test_score_v2": test_score_sps_sp_g2,
-        "sc_sparsity_weighted_test_score_v2": test_score_sps_sc_g2,
-        "diff_sparsity_weighted_test_score_v2": test_score_sps_diff_g2,
-        "auc_test_score": auc_test_score,
+        "sp_sparsity_score": test_score_sps_sp_g2,
+        "auc_score": auc_test_score,
     }
 
     auc_coordinates = ((pol_xs, pol_ys), (xs, ys))
