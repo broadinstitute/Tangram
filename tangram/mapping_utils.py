@@ -54,11 +54,17 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
 
     adata_sc.uns["training_genes"] = genes
     adata_sp.uns["training_genes"] = genes
+    logging.info(
+        f"training genes list is saved in `uns``training_genes` of both single cell and spatial Anndatas."
+    )
 
     # Calculate density prior as % of rna molecule count
     rna_count_per_spot = adata_sp.X.sum(axis=1)
     adata_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
         rna_count_per_spot
+    )
+    logging.info(
+        f"rna count based density prior is calculated and saved in `obs``rna_count_based_density` of the spatial Anndata."
     )
 
     # return adata_sc, adata_sp

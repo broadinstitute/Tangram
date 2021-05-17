@@ -131,6 +131,7 @@ def ordered_predictions(xs, ys, preds, reverse=False):
 
 def plot_cell_annotation(
     adata_map,
+    adata_sp,
     annotation="cell_type",
     x="x",
     y="y",
@@ -164,7 +165,9 @@ def plot_cell_annotation(
     if robust and perc == 0:
         raise ValueError("Arg perc cannot be zero when robust is True.")
 
-    df_annotation = ut.project_cell_annotations(adata_map, annotation=annotation)
+    ut.project_cell_annotations(adata_map, adata_sp, annotation=annotation)
+
+    df_annotation = adata_sp.obsm["tangram_result"]
 
     #### Colorbar:
     fig, ax = plt.subplots(figsize=(4, 0.4))

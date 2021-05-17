@@ -114,18 +114,23 @@ def one_hot_encoding(l, keep_aggregate=False):
     return df_enriched
 
 
-def project_cell_annotations(adata_map, annotation="cell_type"):
+def project_cell_annotations(adata_map, ad_sp, annotation="cell_type"):
     """
     Transfer `annotation` from single cell data onto space.
     Args:
         adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
         annotation (str): Cell annotations matrix with shape (number_cells, number_annotations).
     Returns:
-        A dataframe with spatial probabilities for each annotation (number_spots, number_annotations)
+        A dataframe with spatial probabilities for each annotation (number_spots, number_annotations) is added to the spatial anndata 'obsm'
     """
     df = one_hot_encoding(adata_map.obs[annotation])
     df_ct_prob = adata_map.X.T @ df
-    return df_ct_prob
+    print(df_ct_prob.shape)
+    df_ct_prob.index = adata_map.var.index
+    ad_sp.obsm["tangram_result"] = df_ct_prob
+    logging.info(
+        f"spatial probability dataframe is saved in `obsm` `tangram_result` of the spatial anndata."
+    )
 
 
 def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
@@ -165,6 +170,8 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
          Returns a DataFrame with similarity scores between genes.
     """
 
+    logger_root = logging.getLogger()
+    logger_root.disabled = True
     mu.pp_adatas(ad_ge, ad_sp)
 
     overlap_genes = ad_ge.uns["training_genes"]
@@ -211,7 +218,7 @@ def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
     return df_g
 
 
-def cv_data_gen(ad_sc, ad_sp, mode="loo"):
+def cv_data_gen(ad_sc, ad_sp, cv_mode="loo"):
     """ This function generates pair of training/test gene indexes cross validation datasets
 
     Args:
@@ -235,9 +242,9 @@ def cv_data_gen(ad_sc, ad_sp, mode="loo"):
 
     genes_array = np.array(ad_sp.uns["training_genes"])
 
-    if mode == "loo":
+    if cv_mode == "loo":
         cv = LeaveOneOut()
-    elif mode == "10fold":
+    elif cv_mode == "10fold":
         cv = KFold(n_splits=10)
 
     for train_idx, test_idx in cv.split(genes_array):
@@ -276,7 +283,7 @@ def cross_val(
         lambda_r (float): Optional. Strength of entropy regularizer.
         cluster_label: string, the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
         scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
-        mode: string, cross validation mode, 'loo' and 'kfold' supported
+        cv_mode: string, cross validation mode, 'loo' and 'kfold' supported
         return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
         experiment: experiment object in comet-ml for logging training in comet-ml
     Returns:
@@ -332,7 +339,7 @@ def cross_val(
         )
 
         # retrieve result for test gene (genes X cluster/cell)
-        if mode == "loo" and return_gene_pred:
+        if cv_mode == "loo" and return_gene_pred:
             ad_ge_test = ad_ge[:, test_genes].X.T
             test_pred_list.append(ad_ge_test)
 
@@ -363,7 +370,7 @@ def cross_val(
     avg_train_score = np.nanmean(train_score_list)
 
     cv_dict = {
-        "mode": mode,
+        "mode": cv_mode,
         "weighting": scale,
         "lambda_d": lambda_d,
         "lambda_g1": lambda_g1,
@@ -379,7 +386,7 @@ def cross_val(
         experiment.log_metric("avg test score", avg_test_score)
         experiment.log_metric("avg train score", avg_train_score)
 
-    if mode == "loo" and return_gene_pred:
+    if cv_mode == "loo" and return_gene_pred:
 
         # output AnnData for generated spatial data by LOOCV
         ad_ge_cv = sc.AnnData(
