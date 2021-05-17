@@ -7,7 +7,7 @@ from collections import defaultdict
 import gzip
 import pickle
 import scanpy as sc
-
+from tqdm import tqdm
 from sklearn.model_selection import LeaveOneOut
 from sklearn.model_selection import KFold
 from comet_ml import Experiment
@@ -295,7 +295,14 @@ def cross_val(
     train_score_list = []
     curr_cv_set = 1
 
-    for train_genes, test_genes in cv_data_gen(ad_sc, ad_sp, cv_mode):
+    if cv_mode == "loo":
+        length = len(list(ad_sc.uns["training_genes"]))
+    elif cv_mode == "10fold":
+        length = 10
+
+    for train_genes, test_genes, in tqdm(
+        cv_data_gen(ad_sc, ad_sp, cv_mode), total=length
+    ):
         # Check if training_genes key exist/is valid in adatas.uns
         mu.pp_adatas(ad_sc, ad_sp, train_genes)
         assert list(ad_sp.uns["training_genes"]) == list(ad_sc.uns["training_genes"])
