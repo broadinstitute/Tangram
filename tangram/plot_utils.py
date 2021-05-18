@@ -24,6 +24,9 @@ def q_value(data, perc):
     Args:
         data: numpy array
         perc: percentile
+    Returns:
+        vmin
+        vmax
     """
     vmin = np.nanpercentile(data, perc)
     vmax = np.nanpercentile(data, 100 - perc)

@@ -24,11 +24,17 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
     Pre-process AnnDatas so that they can be mapped. Specifically:
     - Remove genes that all entries are zero
     - Find the intersection between adata_sc, adata_sp and given marker gene list, save the intersected markers in two adatas
-    - Calculate rna_count_based density priors and save it with adata_sp
-    :param adata_sc: 
-    :param adata_sp:
-    :param genes: List of genes to use. If `None`, all genes are used.
-    :return:
+    - Calculate density priors and save it with adata_sp
+
+    Args:
+    adata_sc (AnnData): single cell data
+    adata_sp (AnnData): spatial expression data
+    genes (List): Optional. List of genes to use. If `None`, all genes are used.
+    
+    Returns:
+        update adata_sc by creating `uns` `training_genes` field 
+        update adata_sp by creating `uns` `training_genes` field and creating `obs` `rna_count_based_density` & `uniform_density` field
+
     """
 
     # put all var index to lower case to align
@@ -58,7 +64,14 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
         f"training genes list is saved in `uns``training_genes` of both single cell and spatial Anndatas."
     )
 
-    # Calculate density prior as % of rna molecule count
+    # Calculate uniform density prior as 1/number_of_spots
+    rna_count_per_spot = adata_sp.X.sum(axis=1)
+    adata_sp.obs["uniform_density"] = np.ones(adata_sp.X.shape[0]) / adata_sp.X.shape[0]
+    logging.info(
+        f"uniform based density prior is calculated and saved in `obs``uniform_density` of the spatial Anndata."
+    )
+
+    # Calculate rna_count_based density prior as % of rna molecule count
     rna_count_per_spot = adata_sp.X.sum(axis=1)
     adata_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
         rna_count_per_spot
@@ -67,16 +80,21 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
         f"rna count based density prior is calculated and saved in `obs``rna_count_based_density` of the spatial Anndata."
     )
 
-    # return adata_sc, adata_sp
-
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """
     Convert an AnnData to a new AnnData with cluster expressions. Clusters are based on `label` in `adata.obs`.  The returned AnnData has an observation for each cluster, with the cluster-level expression equals to the average expression for that cluster.
     All annotations in `adata.obs` except `label` are discarded in the returned AnnData.
-    If `add_density`, the normalized number of cells in each cluster is added to the returned AnnData as obs.cluster_density.
-    :param adata:
-    :param cluster_label: cluster_label for aggregating
+    
+    Args:
+        adata (AnnData): single cell data
+        cluster_label (String): level for aggregating
+        scale (bool): Optional. Whether weight input single cell by # of cells in cluster. Default is True.
+        add_density (bool): Optional. If True, the normalized number of cells in each cluster is added to the returned AnnData as obs.cluster_density.
+
+    Returns:
+        AnnData: aggregated single cell data
+
     """
     try:
         value_counts = adata.obs[cluster_label].value_counts(normalize=True)
@@ -110,7 +128,6 @@ def map_cells_to_space(
     device="cuda:0",
     learning_rate=0.1,
     num_epochs=1000,
-    d=None,
     cluster_label=None,
     scale=True,
     lambda_d=0,
@@ -125,15 +142,31 @@ def map_cells_to_space(
     """
         Map single cell data (`adata_sc`) on spatial data (`adata_sp`). If `adata_map`
         is provided, resume from previous mapping.
-        Returns a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
-        The `uns` field of the returned AnnData contains the training genes.
-        :param mode: Tangram mode. Currently supported: `cell`, `clusters`
-        :param lambda_d (float): Optional. Hiperparameter for the density term of the optimizer. Default is 0.
-        :param lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
-        :param lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
-        :param lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
-        :param density_prior (ndarray or string): Spatial density of cells, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). If not provided, the density term is ignored. This array should satisfy the constraints d.sum() == 1.
-        :param experiment: experiment object in comet-ml for logging training in comet-ml
+
+        Args:
+
+            ad_sc (AnnData): single cell data
+            ad_sp (AnnData): gene spatial data
+            cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+            mode (string): Optional. Tangram mapping mode. Currently supported: `cell`, `clusters`. Default is 'clusters'
+            adata_map (AnnData): Optional. Mapping initial condition (for resuming previous mappings)
+            scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
+            lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
+            lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
+            lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
+            lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+            num_epochs (int): Optional. Number of epochs. Default is 1000.
+            learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
+            device (string or torch.device): Optional. Default is 'cpu'.
+            experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
+            random_state (int): Optional. pass an int to reproduce training. Default is None.
+            verbose (bool): Optional. If print training details. Default is True.
+            density_prior (ndarray or string): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+
+        Returns:
+            a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
+            The `uns` field of the returned AnnData contains the training genes.
+
     """
 
     # check invalid values for arguments
@@ -198,7 +231,7 @@ def map_cells_to_space(
 
     # define density_prior if 'uniform' is passed to the density_prior argument:
     elif density_prior == "uniform":
-        density_prior = np.ones(G.shape[0]) / G.shape[0]
+        density_prior = adata_space.obs["uniform_density"]
 
     if mode == "cells":
         d = density_prior
@@ -206,7 +239,7 @@ def map_cells_to_space(
     if mode == "clusters":
         d = density_prior
         if d is None:
-            d = np.ones(G.shape[0]) / G.shape[0]
+            d = adata_space.obs["uniform_density"]
 
     # Choose device
     device = torch.device(device)  # for gpu
@@ -217,25 +250,6 @@ def map_cells_to_space(
         "lambda_g2": lambda_g2,  # voxel-gene cos sim
         "lambda_r": lambda_r,  # regularizer: penalize entropy
     }
-
-    # # Init hyperparameters
-    # if mode == 'cells':
-    #     hyperparameters = {
-    #         'lambda_d': 0,  # KL (ie density) term
-    #         'lambda_g1': 1,  # gene-voxel cos sim
-    #         'lambda_g2': 0,  # voxel-gene cos sim
-    #         'lambda_r': 0,  # regularizer: penalize entropy
-    #     }
-    # elif mode == 'clusters':
-    #     hyperparameters = {
-    #         'lambda_d': 1,  # KL (ie density) term
-    #         'lambda_g1': 1,  # gene-voxel cos sim
-    #         'lambda_g2': 0,  # voxel-gene cos sim
-    #         'lambda_r': 0,  # regularizer: penalize entropy
-    #         'd_source': np.array(adata_cells.obs['cluster_density']) # match sourge/target densities
-    #     }
-    # else:
-    #     raise NotImplementedError
 
     # Train Tangram
     logging.info(

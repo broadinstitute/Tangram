@@ -15,8 +15,8 @@ __pycache__
 # ignore AnnDatas
 *.h5ad
 # except for test datasets
-!test_adata_sc.h5ad
-!test_adata_sp.h5ad
+!test_ad_sc.h5ad
+!test_ad_sp.h5ad
 example/data/
 
 # Distribution / packaging

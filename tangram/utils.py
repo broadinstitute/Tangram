@@ -47,6 +47,13 @@ def read_pickle(filename):
 
 def annotate_gene_sparsity(adata):
     """
+    This function annotate gene sparsity in given Anndatas
+
+    Args:
+        adata (Anndata)
+
+    Returns:
+        Update given Anndata by creating `var` "sparsity" field with gene_sparsity (1 - % non-zero observations)
     
     """
     mask = adata.X != 0
@@ -116,12 +123,13 @@ def one_hot_encoding(l, keep_aggregate=False):
 
 def project_cell_annotations(adata_map, ad_sp, annotation="cell_type"):
     """
-    Transfer `annotation` from single cell data onto space.
+    Transfer `annotation` from single cell data onto space. 
+
     Args:
         adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
         annotation (str): Cell annotations matrix with shape (number_cells, number_annotations).
     Returns:
-        A dataframe with spatial probabilities for each annotation (number_spots, number_annotations) is added to the spatial anndata 'obsm'
+        update spatial Anndata and create `obsm` ['tangram_result'] with a dataframe with spatial probabilities for each annotation (number_spots, number_annotations) 
     """
     df = one_hot_encoding(adata_map.obs[annotation])
     df_ct_prob = adata_map.X.T @ df
@@ -136,8 +144,15 @@ def project_cell_annotations(adata_map, ad_sp, annotation="cell_type"):
 def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     """
         Transfer gene expression from the single cell onto space.
-        Returns a spot-by-gene AnnData containing spatial gene 
-        expression from the single cell data.
+
+    Args:
+        adata_map (AnnData): single cell data
+        adata_sp (AnnData): gene spatial data
+        cluster_label (AnnData): Optional. Should be consistent with the 'cluster_label' argument passed to `map_cells_to_space` function.
+        scale (bool): Optional. Should be consistent with the 'scale' argument passed to `map_cells_to_space` function.
+
+    Returns:
+        AnnData: spot-by-gene AnnData containing spatial gene expression from the single cell data.
     """
 
     # put all var index to lower case to align
@@ -164,10 +179,14 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
 
 
 def compare_spatial_geneexp(ad_ge, ad_sp, ad_sc=None):
-    """
-         Compare gene expression in the generated ans original spatial AnnDatas. 
-         Used to compared mapped single cell data to original spatial data.
-         Returns a DataFrame with similarity scores between genes.
+    """ This function compares generated spatial data with the true spatial data
+    Args:
+        ad_ge (AnnData): single cell data
+        ad_sp (AnnData): gene spatial data
+        ad_sc (AnnData): Optional. When passed, sparsity difference between ad_sc and ad_sp will be calculated. Default is None.
+
+    Returns:
+        Pandas Dataframe: a dataframe with columns: 'score', 'is_training', 'sparsity_sp'(spatial data sparsity), 'sparsity_sc'(single cell data sparsity), 'sparsity_diff'(spatial sparsity - single cell sparsity)
     """
 
     logger_root = logging.getLogger()
@@ -222,9 +241,12 @@ def cv_data_gen(ad_sc, ad_sp, cv_mode="loo"):
     """ This function generates pair of training/test gene indexes cross validation datasets
 
     Args:
-        ad_sc: AnnData, single cell data
-        ad_sp: AnnData, gene spatial data
-        mode: string, support 'loo' and '10fold'
+        ad_sc (AnnData): single cell data
+        ad_sp (AnnData): gene spatial data
+        mode (string): Optional. support 'loo' and '10fold'. Default is 'loo'.
+
+    Yields:
+        tuple: list of train_genes, list of test_genes
 
     """
 
@@ -268,6 +290,7 @@ def cross_val(
     learning_rate=0.1,
     cv_mode="loo",
     return_gene_pred=False,
+    density_prior=None,
     experiment=None,
     random_state=None,
     verbose=False,
@@ -275,20 +298,27 @@ def cross_val(
     """ This function executes cross validation
 
     Args:
-        ad_sc: AnnData, single cell data
-        ad_sp: AnnData, gene spatial data
+        ad_sc (AnnData): single cell data
+        ad_sp (AnnData): gene spatial data
+        cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+        mode (string): Optional. Tangram mapping mode. Currently supported: `cell`, `clusters`. Default is 'clusters'
+        scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
         lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
         lambda_d (float): Optional. Strength of density regularizer. Default is 0.
         lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
-        lambda_r (float): Optional. Strength of entropy regularizer.
-        cluster_label: string, the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
-        scale: bool, whether weight input single cell by cluster data by # of cells in cluster, only valid when cluster_label is not None
-        cv_mode: string, cross validation mode, 'loo' and 'kfold' supported
-        return_gene_pred: bool, if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False
-        experiment: experiment object in comet-ml for logging training in comet-ml
+        lambda_r (float): Optional. Strength of entropy regularizer. Default is 0.
+        num_epochs (int): Optional. Number of epochs. Default is 1000.
+        learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
+        device (string or torch.device): Optional. Default is 'cpu'.
+        cv_mode (string): Optional. cross validation mode, 'loo' ('leave-one-out') and '10fold' supported. Default is 'loo'.
+        return_gene_pred (bool): Optional. if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False.
+        density_prior (ndarray or string): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+        experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
+        random_state (int): Optional. pass an int to reproduce training. Default is None.
+        verbose (bool): Optional. If print training details. Default is False.
     Returns:
-        cv_dict: dict, a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
-        (df_test_gene_pred, df_test_gene_true): tuple, only return this tuple when return_gene_pred is True and mode is 'loo'
+        cv_dict (dict): a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
+        ad_ge_cv (AnnData): predicted spatial data by LOOCV. Only returns when `return_gene_pred` is True and in 'loo' mode.
     """
 
     logger_root = logging.getLogger()
@@ -331,6 +361,7 @@ def cross_val(
             lambda_r=lambda_r,
             random_state=random_state,
             verbose=False,
+            density_prior=density_prior,
         )
 
         # project on space
@@ -410,10 +441,12 @@ def eval_metric(df_all_genes, test_genes=None):
     
     Args:
     df_all_genes: pandas dataframe returned by compare_spatial_geneexp(ad_ge, ad_sp, ad_sc); 
-                   with "gene names" as the index and "score", "is_training", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
-    test_genes: list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
+                  with "gene names" as the index and "score", "is_training", "sparsity_sc", 
+                  "sparsity_sp", "sparsity_diff" as the columns
+    test_genes:   list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
 
-    Returns: dict with values of each evaluation metric, tuple of auc fitted coordinates and raw coordinates(test_score vs. sparsity_sp coordinates)
+    Returns:      dict with values of each evaluation metric ("avg_test_score", "avg_train_score", "sp_sparsity_score", "auc_score"), 
+                  tuple of auc fitted coordinates and raw coordinates(test_score vs. sparsity_sp coordinates)
     """
 
     # validate test_genes:
@@ -432,8 +465,6 @@ def eval_metric(df_all_genes, test_genes=None):
     # calculate:
     test_gene_scores = df_all_genes.loc[test_genes]["score"]
     test_gene_sparsity_sp = df_all_genes.loc[test_genes]["sparsity_sp"]
-    test_gene_sparsity_sc = df_all_genes.loc[test_genes]["sparsity_sc"]
-    test_gene_sparsity_diff = df_all_genes.loc[test_genes]["sparsity_diff"]
     test_score_avg = test_gene_scores.mean()
     train_score_avg = df_all_genes[df_all_genes["is_training"] == True]["score"].mean()
 

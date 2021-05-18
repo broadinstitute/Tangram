@@ -17,8 +17,8 @@ from pytest import approx
 
 @pytest.fixture
 def adatas():
-    ad_sc = sc.read_h5ad("test_data/test_adata_sc.h5ad")
-    ad_sp = sc.read_h5ad("test_data/test_adata_sp.h5ad")
+    ad_sc = sc.read_h5ad("test_data/test_ad_sc.h5ad")
+    ad_sp = sc.read_h5ad("test_data/test_ad_sp.h5ad")
     return (ad_sc, ad_sp)
 
 
@@ -51,6 +51,7 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
     assert ad_sc_mock.uns["training_genes"] == ad_sp_mock.uns["training_genes"]
     assert ad_sc_mock.X.any(axis=0).all() and ad_sp_mock.X.any(axis=0).all()
     assert "rna_count_based_density" in ad_sp_mock.obs.keys()
+    assert "uniform_density" in ad_sp_mock.obs.keys()
 
 
 # test mapping function with different parameters
@@ -91,7 +92,7 @@ def test_map_cells_to_space(
     )
 
     # check if first element of output_admap.X is equal to expected value
-    assert round(ad_map.X[0, 0], 5) == round(e, 5)
+    assert round(ad_map.X[0, 0], 5) == approx(round(e, 5))
 
 
 # test mapping exception with assertion
