@@ -134,6 +134,9 @@ def map_cells_to_space(
     lambda_g1=1,
     lambda_g2=0,
     lambda_r=0,
+    lambda_count=1,
+    lambda_f_reg=1,
+    target_count=None,
     random_state=None,
     verbose=True,
     density_prior=None,
@@ -148,13 +151,16 @@ def map_cells_to_space(
             ad_sc (AnnData): single cell data
             ad_sp (AnnData): gene spatial data
             cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
-            mode (string): Optional. Tangram mapping mode. Currently supported: `cell`, `clusters`. Default is 'clusters'
+            mode (string): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'
             adata_map (AnnData): Optional. Mapping initial condition (for resuming previous mappings)
             scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
             lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
             lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
             lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
             lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+            lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
+            lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
+            target_count (int): Optional. The number of cells to be filtered. Default is None.
             num_epochs (int): Optional. Number of epochs. Default is 1000.
             learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
             device (string or torch.device): Optional. Default is 'cpu'.
@@ -176,11 +182,14 @@ def map_cells_to_space(
     if density_prior is not None and lambda_d == 0:
         raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
 
-    if mode not in ["clusters", "cells"]:
+    if mode not in ["clusters", "cells", "constrained"]:
         raise ValueError('Argument "mode" must be "cells" or "clusters"')
 
     if mode == "clusters" and cluster_label is None:
-        raise ValueError("A cluster_label must be specified if mode = clusters.")
+        raise ValueError("A cluster_label must be specified if mode is 'clusters'.")
+
+    if mode == "constrained" and target_count is None:
+        raise ValueError("target_count must be specified if mode is 'constrained'.")
 
     if mode == "clusters":
         adata_cells = adata_to_cluster_expression(
@@ -233,7 +242,7 @@ def map_cells_to_space(
     elif density_prior == "uniform":
         density_prior = adata_space.obs["uniform_density"]
 
-    if mode == "cells":
+    if mode in ["cells", "constrained"]:
         d = density_prior
 
     if mode == "clusters":
@@ -244,38 +253,77 @@ def map_cells_to_space(
     # Choose device
     device = torch.device(device)  # for gpu
 
-    hyperparameters = {
-        "lambda_d": lambda_d,  # KL (ie density) term
-        "lambda_g1": lambda_g1,  # gene-voxel cos sim
-        "lambda_g2": lambda_g2,  # voxel-gene cos sim
-        "lambda_r": lambda_r,  # regularizer: penalize entropy
-    }
-
-    # Train Tangram
-    logging.info(
-        "Begin training with {} genes in {} mode...".format(len(training_genes), mode)
-    )
-    mapper = mo.Mapper(
-        S=S,
-        G=G,
-        d=d,
-        device=device,
-        adata_map=adata_map,
-        random_state=random_state,
-        **hyperparameters,
-    )
-    # TODO `train` should return the loss function
     if verbose:
         print_each = 100
     else:
         print_each = None
 
-    mapping_matrix, training_history = mapper.train(
-        learning_rate=learning_rate,
-        num_epochs=num_epochs,
-        print_each=print_each,
-        experiment=experiment,
-    )
+    if mode in ["cells", "clusters"]:
+        hyperparameters = {
+            "lambda_d": lambda_d,  # KL (ie density) term
+            "lambda_g1": lambda_g1,  # gene-voxel cos sim
+            "lambda_g2": lambda_g2,  # voxel-gene cos sim
+            "lambda_r": lambda_r,  # regularizer: penalize entropy
+        }
+
+        logging.info(
+            "Begin training with {} genes in {} mode...".format(
+                len(training_genes), mode
+            )
+        )
+        mapper = mo.Mapper(
+            S=S,
+            G=G,
+            d=d,
+            device=device,
+            adata_map=adata_map,
+            random_state=random_state,
+            **hyperparameters,
+        )
+
+        # TODO `train` should return the loss function
+
+        mapping_matrix, training_history = mapper.train(
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            print_each=print_each,
+            experiment=experiment,
+        )
+
+    # constrained mode
+    elif mode == "constrained":
+        hyperparameters = {
+            "lambda_d": lambda_d,  # KL (ie density) term
+            "lambda_g1": lambda_g1,  # gene-voxel cos sim
+            "lambda_g2": lambda_g2,  # voxel-gene cos sim
+            "lambda_r": lambda_r,  # regularizer: penalize entropy
+            "lambda_count": lambda_count,
+            "lambda_f_reg": lambda_f_reg,
+            "target_count": target_count,
+        }
+
+        logging.info(
+            "Begin training with {} genes in {} mode...".format(
+                len(training_genes), mode
+            )
+        )
+
+        mapper = mo.MapperConstrained(
+            S=S,
+            G=G,
+            d=d,
+            device=device,
+            adata_map=adata_map,
+            random_state=random_state,
+            **hyperparameters,
+        )
+
+        mapping_matrix, F_out, training_history = mapper.train(
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            print_each=print_each,
+            experiment=experiment,
+        )
 
     logging.info("Saving results..")
     adata_map = sc.AnnData(
@@ -283,6 +331,9 @@ def map_cells_to_space(
         obs=adata_cells[:, training_genes].obs.copy(),
         var=adata_space[:, training_genes].obs.copy(),
     )
+
+    if mode == "constrained":
+        adata_map.obs["F_out"] = F_out
 
     # Annotate cosine similarity of each training gene
     G_predicted = adata_map.X.T @ S

@@ -129,8 +129,8 @@ class Mapper:
 
         if verbose:
 
-            term_numbers = [main_loss, kl_reg, vg_reg, entropy_reg]
-            term_names = ["Score", "KL reg", "VG reg", "Entropy reg"]
+            term_numbers = [main_loss, vg_reg, kl_reg, entropy_reg]
+            term_names = ["Score", "VG reg", "KL reg", "Entropy reg"]
 
             d = dict(zip(term_names, term_numbers))
             clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
@@ -174,17 +174,13 @@ class Mapper:
                 run_loss = self._loss_fn(verbose=True)
 
             loss = run_loss[0]
-            training_history["total_loss"].append(np.float64(loss))
-            training_history["main_loss"].append(np.float64(run_loss[1]))
-            training_history["vg_reg"].append(np.float64(run_loss[2]))
-            training_history["kl_reg"].append(np.float64(run_loss[3]))
-            training_history["entropy_reg"].append(np.float64(run_loss[4]))
+
+            for i in range(len(keys)):
+                training_history[keys[i]].append(np.float32(run_loss[i]))
 
             if experiment:
-                experiment.log_metric("main_loss", np.float64(run_loss[1]))
-                experiment.log_metric("vg_reg", np.float64(run_loss[2]))
-                experiment.log_metric("kl_reg", np.float64(run_loss[3]))
-                experiment.log_metric("entropy_reg", np.float64(run_loss[4]))
+                for i in range(len(keys)):
+                    experiment.log_metric(keys[i], np.float32(run_loss[i]))
 
             optimizer.zero_grad()
             loss.backward()
@@ -223,7 +219,7 @@ class MapperConstrained:
                 Spots can be single cells or they can contain multiple cells.
             d (ndarray): Spatial density of cells, shape = (number_spots,).
                 This array should satisfy the constraints d.sum() == 1.
-            lambda_d (float): Optional. Hiperparameter for the density term of the optimizer. Default is 1.
+            lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 1.
             lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
             lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 1.
             lambda_r (float): Optional. Entropy regularizer for the learned mapping matrix. An higher entropy promotes
@@ -294,18 +290,62 @@ class MapperConstrained:
         f_reg_t = F_probs - F_probs * F_probs
         f_reg = self.lambda_f_reg * f_reg_t.sum()
 
+        main_loss = (gv_term / self.lambda_g1).tolist()
+        kl_reg = (
+            (density_term / self.lambda_d).tolist()
+            if density_term is not None
+            else np.nan
+        )
+        entropy_reg = (regularizer_term / self.lambda_r).tolist()
+        main_loss = (gv_term / self.lambda_g1).tolist()
+        vg_reg = (vg_term / self.lambda_g2).tolist()
+        count_reg = (count_term / self.lambda_count).tolist()
+        lambda_f_reg = (f_reg / self.lambda_f_reg).tolist()
+
         if verbose:
-            print(
-                (density_term / self.lambda_d).tolist(),
-                (gv_term / self.lambda_g1).tolist(),
-                (vg_term / self.lambda_g2).tolist(),
-                (count_term / self.lambda_count).tolist(),
-                (f_reg / self.lambda_f_reg).tolist(),
-            )
+            term_numbers = [
+                main_loss,
+                vg_reg,
+                kl_reg,
+                entropy_reg,
+                count_reg,
+                lambda_f_reg,
+            ]
+            term_names = [
+                "Score",
+                "VG reg",
+                "KL reg",
+                "Entropy reg",
+                "Count reg",
+                "Lambda f reg",
+            ]
 
-        return density_term - expression_term - regularizer_term + count_term + f_reg
+            score_dict = dict(zip(term_names, term_numbers))
+            clean_dict = {
+                k: score_dict[k] for k in score_dict if not np.isnan(score_dict[k])
+            }
+            msg = []
+            for k in clean_dict:
+                m = "{}: {:.3f}".format(k, clean_dict[k])
+                msg.append(m)
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100):
+            print(str(msg).replace("[", "").replace("]", "").replace("'", ""))
+
+        total_loss = (
+            density_term - expression_term - regularizer_term + count_term + f_reg
+        )
+
+        return (
+            total_loss,
+            main_loss,
+            vg_reg,
+            kl_reg,
+            entropy_reg,
+            count_reg,
+            lambda_f_reg,
+        )
+
+    def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
         """
         Run the optimizer and returns the mapping outcome.
         Args:
@@ -319,11 +359,33 @@ class MapperConstrained:
         """
         optimizer = torch.optim.Adam([self.M, self.F], lr=learning_rate)
 
+        keys = [
+            "total_loss",
+            "main_loss",
+            "vg_reg",
+            "kl_reg",
+            "entropy_reg",
+            "count_reg",
+            "lambda_f_reg",
+        ]
+        values = [[] for i in range(len(keys))]
+        training_history = {key: value for key, value in zip(keys, values)}
+
         for t in range(num_epochs):
             if print_each is None or t % print_each != 0:
-                loss = self._loss_fn(verbose=False)
+                run_loss = self._loss_fn(verbose=False)
             else:
-                loss = self._loss_fn(verbose=True)
+                run_loss = self._loss_fn(verbose=True)
+
+            loss = run_loss[0]
+
+            for i in range(len(keys)):
+                training_history[keys[i]].append(np.float32(run_loss[i]))
+
+            if experiment:
+                for i in range(len(keys)):
+                    experiment.log_metric(keys[i], np.float32(run_loss[i]))
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -331,4 +393,4 @@ class MapperConstrained:
         with torch.no_grad():
             output = softmax(self.M, dim=1).cpu().numpy()
             F_out = torch.sigmoid(self.F).cpu().numpy()
-            return output, F_out
+            return output, F_out, training_history
