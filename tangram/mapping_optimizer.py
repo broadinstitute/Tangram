@@ -209,7 +209,9 @@ class MapperConstrained:
         lambda_count=1,
         lambda_f_reg=1,
         device="cpu",
+        adata_map=None,
         target_count=None,
+        random_state=None,
     ):
         """
         Instantiate the Tangram optimizer (with filtering).
@@ -241,6 +243,15 @@ class MapperConstrained:
         self.lambda_count = lambda_count
         self.lambda_f_reg = lambda_f_reg
         self._density_criterion = torch.nn.KLDivLoss(reduction="sum")
+        self.random_state = random_state
+
+        if adata_map is None:
+            if self.random_state:
+                np.random.seed(seed=self.random_state)
+            self.M = np.random.normal(0, 1, (S.shape[0], G.shape[0]))
+        else:
+            raise NotImplemented
+            self.M = adata_map.X  # doesn't work. maybe apply inverse softmax
 
         if target_count is None:
             self.target_count = self.G.shape[0]
@@ -357,6 +368,9 @@ class MapperConstrained:
                 M (ndarray) is the optimized mapping matrix, shape = (number_cells, number_spots).
                 f (ndarray) is the optimized filter, shape = (number_cells,).
         """
+
+        if self.random_state:
+            torch.manual_seed(seed=self.random_state)
         optimizer = torch.optim.Adam([self.M, self.F], lr=learning_rate)
 
         keys = [

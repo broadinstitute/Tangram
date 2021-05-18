@@ -124,7 +124,6 @@ def map_cells_to_space(
     adata_cells,
     adata_space,
     mode="cells",
-    adata_map=None,
     device="cuda:0",
     learning_rate=0.1,
     num_epochs=1000,
@@ -152,7 +151,6 @@ def map_cells_to_space(
             ad_sp (AnnData): gene spatial data
             cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
             mode (string): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'
-            adata_map (AnnData): Optional. Mapping initial condition (for resuming previous mappings)
             scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
             lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
             lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
@@ -223,7 +221,7 @@ def map_cells_to_space(
         raise NotImplementedError
 
     if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space[:, training_genes].toarray(), dtype="float32")
+        G = np.array(adata_space[:, training_genes].X.toarray(), dtype="float32")
     elif isinstance(adata_space.X, np.ndarray):
         G = np.array(adata_space[:, training_genes].X, dtype="float32")
     else:
@@ -272,13 +270,7 @@ def map_cells_to_space(
             )
         )
         mapper = mo.Mapper(
-            S=S,
-            G=G,
-            d=d,
-            device=device,
-            adata_map=adata_map,
-            random_state=random_state,
-            **hyperparameters,
+            S=S, G=G, d=d, device=device, random_state=random_state, **hyperparameters,
         )
 
         # TODO `train` should return the loss function
@@ -309,13 +301,7 @@ def map_cells_to_space(
         )
 
         mapper = mo.MapperConstrained(
-            S=S,
-            G=G,
-            d=d,
-            device=device,
-            adata_map=adata_map,
-            random_state=random_state,
-            **hyperparameters,
+            S=S, G=G, d=d, device=device, random_state=random_state, **hyperparameters,
         )
 
         mapping_matrix, F_out, training_history = mapper.train(
