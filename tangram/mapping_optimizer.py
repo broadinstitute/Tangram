@@ -176,11 +176,11 @@ class Mapper:
             loss = run_loss[0]
 
             for i in range(len(keys)):
-                training_history[keys[i]].append(np.float32(run_loss[i]))
+                training_history[keys[i]].append(run_loss[i])
 
             if experiment:
-                for i in range(len(keys)):
-                    experiment.log_metric(keys[i], np.float32(run_loss[i]))
+                for i in range(1, len(keys)):
+                    experiment.log_metric(keys[i], run_loss[i])
 
             optimizer.zero_grad()
             loss.backward()
@@ -380,11 +380,11 @@ class MapperConstrained:
             loss = run_loss[0]
 
             for i in range(len(keys)):
-                training_history[keys[i]].append(np.float32(run_loss[i]))
+                training_history[keys[i]].append(run_loss[i])
 
             if experiment:
-                for i in range(len(keys)):
-                    experiment.log_metric(keys[i], np.float32(run_loss[i]))
+                for i in range(1, len(keys)):
+                    experiment.log_metric(keys[i], run_loss[i])
 
             optimizer.zero_grad()
             loss.backward()
