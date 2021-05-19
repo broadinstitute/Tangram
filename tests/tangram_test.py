@@ -76,8 +76,8 @@ def test_map_cells_to_space(
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
-        adata_cells=adatas[0],
-        adata_space=adatas[1],
+        adata_sc=adatas[0],
+        adata_sp=adatas[1],
         device="cpu",
         mode="clusters",
         cluster_label="subclass_label",
@@ -128,8 +128,8 @@ def test_invalid_map_cells_to_space(
     with pytest.raises(ValueError) as exc_info:
 
         tg.map_cells_to_space(
-            adata_cells=adatas[0],
-            adata_space=adatas[1],
+            adata_sc=adatas[0],
+            adata_sp=adatas[1],
             device="cpu",
             mode=mode,
             cluster_label=cluster_label,
@@ -163,8 +163,8 @@ def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
-        adata_cells=adatas[0],
-        adata_space=adatas[1],
+        adata_sc=adatas[0],
+        adata_sp=adatas[1],
         device="cpu",
         mode="clusters",
         cluster_label="subclass_label",

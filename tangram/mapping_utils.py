@@ -27,9 +27,9 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
     - Calculate density priors and save it with adata_sp
 
     Args:
-    adata_sc (AnnData): single cell data
-    adata_sp (AnnData): spatial expression data
-    genes (List): Optional. List of genes to use. If `None`, all genes are used.
+        adata_sc (AnnData): single cell data
+        adata_sp (AnnData): spatial expression data
+        genes (List): Optional. List of genes to use. If `None`, all genes are used.
     
     Returns:
         update adata_sc by creating `uns` `training_genes` field 
@@ -121,8 +121,8 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 
 
 def map_cells_to_space(
-    adata_cells,
-    adata_space,
+    adata_sc,
+    adata_sp,
     mode="cells",
     device="cuda:0",
     learning_rate=0.1,
@@ -142,34 +142,34 @@ def map_cells_to_space(
     experiment=None,
 ):
     """
-        Map single cell data (`adata_sc`) on spatial data (`adata_sp`). If `adata_map`
-        is provided, resume from previous mapping.
+    Map single cell data (`adata_sc`) on spatial data (`adata_sp`). If `adata_map`
+    is provided, resume from previous mapping.
 
-        Args:
+    Args:
 
-            ad_sc (AnnData): single cell data
-            ad_sp (AnnData): gene spatial data
-            cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
-            mode (string): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'
-            scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
-            lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
-            lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
-            lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
-            lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
-            lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
-            lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
-            target_count (int): Optional. The number of cells to be filtered. Default is None.
-            num_epochs (int): Optional. Number of epochs. Default is 1000.
-            learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
-            device (string or torch.device): Optional. Default is 'cpu'.
-            experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
-            random_state (int): Optional. pass an int to reproduce training. Default is None.
-            verbose (bool): Optional. If print training details. Default is True.
-            density_prior (ndarray or string): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+        adata_sc (AnnData): single cell data
+        adata_sp (AnnData): gene spatial data
+        cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
+        mode (string): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'
+        scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
+        lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
+        lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
+        lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
+        lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+        lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
+        lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
+        target_count (int): Optional. The number of cells to be filtered. Default is None.
+        num_epochs (int): Optional. Number of epochs. Default is 1000.
+        learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
+        device (string or torch.device): Optional. Default is 'cpu'.
+        experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
+        random_state (int): Optional. pass an int to reproduce training. Default is None.
+        verbose (bool): Optional. If print training details. Default is True.
+        density_prior (ndarray or string): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
 
-        Returns:
-            a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
-            The `uns` field of the returned AnnData contains the training genes.
+    Returns:
+        a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
+        The `uns` field of the returned AnnData contains the training genes.
 
     """
 
@@ -190,42 +190,40 @@ def map_cells_to_space(
         raise ValueError("target_count must be specified if mode is 'constrained'.")
 
     if mode == "clusters":
-        adata_cells = adata_to_cluster_expression(
-            adata_cells, cluster_label, scale, add_density=True
+        adata_sc = adata_to_cluster_expression(
+            adata_sc, cluster_label, scale, add_density=True
         )
 
     # Check if training_genes key exist/is valid in adatas.uns
-    if "training_genes" not in adata_cells.uns.keys():
+    if "training_genes" not in adata_sc.uns.keys():
         raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
-    if "training_genes" not in adata_space.uns.keys():
+    if "training_genes" not in adata_sp.uns.keys():
         raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
-    assert list(adata_space.uns["training_genes"]) == list(
-        adata_cells.uns["training_genes"]
-    )
+    assert list(adata_sp.uns["training_genes"]) == list(adata_sc.uns["training_genes"])
 
     # get traiing_genes
-    training_genes = adata_cells.uns["training_genes"]
+    training_genes = adata_sc.uns["training_genes"]
 
     logging.info("Allocate tensors for mapping.")
     # Allocate tensors (AnnData matrix can be sparse or not)
 
-    if isinstance(adata_cells.X, csc_matrix) or isinstance(adata_cells.X, csr_matrix):
-        S = np.array(adata_cells[:, training_genes].X.toarray(), dtype="float32",)
-    elif isinstance(adata_cells.X, np.ndarray):
-        S = np.array(adata_cells[:, training_genes].X.toarray(), dtype="float32",)
+    if isinstance(adata_sc.X, csc_matrix) or isinstance(adata_sc.X, csr_matrix):
+        S = np.array(adata_sc[:, training_genes].X.toarray(), dtype="float32",)
+    elif isinstance(adata_sc.X, np.ndarray):
+        S = np.array(adata_sc[:, training_genes].X.toarray(), dtype="float32",)
     else:
-        X_type = type(adata_cells.X)
+        X_type = type(adata_sc.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
 
-    if isinstance(adata_space.X, csc_matrix) or isinstance(adata_space.X, csr_matrix):
-        G = np.array(adata_space[:, training_genes].X.toarray(), dtype="float32")
-    elif isinstance(adata_space.X, np.ndarray):
-        G = np.array(adata_space[:, training_genes].X, dtype="float32")
+    if isinstance(adata_sp.X, csc_matrix) or isinstance(adata_sp.X, csr_matrix):
+        G = np.array(adata_sp[:, training_genes].X.toarray(), dtype="float32")
+    elif isinstance(adata_sp.X, np.ndarray):
+        G = np.array(adata_sp[:, training_genes].X, dtype="float32")
     else:
-        X_type = type(adata_space.X)
+        X_type = type(adata_sp.X)
         logging.error("AnnData X has unrecognized type: {}".format(X_type))
         raise NotImplementedError
 
@@ -234,11 +232,11 @@ def map_cells_to_space(
 
     # define density_prior if 'rna_count_based' is passed to the density_prior argument:
     if density_prior == "rna_count_based":
-        density_prior = adata_space.obs["rna_count_based_density"]
+        density_prior = adata_sp.obs["rna_count_based_density"]
 
     # define density_prior if 'uniform' is passed to the density_prior argument:
     elif density_prior == "uniform":
-        density_prior = adata_space.obs["uniform_density"]
+        density_prior = adata_sp.obs["uniform_density"]
 
     if mode in ["cells", "constrained"]:
         d = density_prior
@@ -246,7 +244,7 @@ def map_cells_to_space(
     if mode == "clusters":
         d = density_prior
         if d is None:
-            d = adata_space.obs["uniform_density"]
+            d = adata_sp.obs["uniform_density"]
 
     # Choose device
     device = torch.device(device)  # for gpu
@@ -314,8 +312,8 @@ def map_cells_to_space(
     logging.info("Saving results..")
     adata_map = sc.AnnData(
         X=mapping_matrix,
-        obs=adata_cells[:, training_genes].obs.copy(),
-        var=adata_space[:, training_genes].obs.copy(),
+        obs=adata_sc[:, training_genes].obs.copy(),
+        var=adata_sp[:, training_genes].obs.copy(),
     )
 
     if mode == "constrained":
@@ -333,17 +331,17 @@ def map_cells_to_space(
     adata_map.uns["train_genes_df"] = df_cs
 
     # Annotate sparsity of each training genes
-    ut.annotate_gene_sparsity(adata_cells)
-    ut.annotate_gene_sparsity(adata_space)
-    adata_map.uns["train_genes_df"]["sparsity_sc"] = adata_cells[
+    ut.annotate_gene_sparsity(adata_sc)
+    ut.annotate_gene_sparsity(adata_sp)
+    adata_map.uns["train_genes_df"]["sparsity_sc"] = adata_sc[
         :, training_genes
     ].var.sparsity
-    adata_map.uns["train_genes_df"]["sparsity_sp"] = adata_space[
+    adata_map.uns["train_genes_df"]["sparsity_sp"] = adata_sp[
         :, training_genes
     ].var.sparsity
     adata_map.uns["train_genes_df"]["sparsity_diff"] = (
-        adata_space[:, training_genes].var.sparsity
-        - adata_cells[:, training_genes].var.sparsity
+        adata_sp[:, training_genes].var.sparsity
+        - adata_sc[:, training_genes].var.sparsity
     )
 
     adata_map.uns["training_history"] = training_history
