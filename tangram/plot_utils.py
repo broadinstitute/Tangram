@@ -444,6 +444,12 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
     axs_f = axs.flatten()
 
+    # set limits for axis
+    axs_f[0].set_ylim([0.0, 1.0])
+    for i in range(1, len(axs_f)):
+        axs_f[i].set_xlim([0.0, 1.0])
+        axs_f[i].set_ylim([0.0, 1.0])
+
     sns.histplot(data=df, y="test_score", bins=bins, ax=axs_f[0])
 
     axs_f[1].set_title("score vs sparsity (single cells)")
@@ -497,6 +503,12 @@ def plot_cv_test_scores(adata_sc, adata_sp, df_gene_score, bins=10, alpha=0.7):
 
     fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
     axs_f = axs.flatten()
+
+    # set limits for axis
+    axs_f[0].set_ylim([0.0, 1.0])
+    for i in range(1, len(axs_f)):
+        axs_f[i].set_xlim([0.0, 1.0])
+        axs_f[i].set_ylim([0.0, 1.0])
 
     axs_f[0].set_title("Test scores for single genes")
     sns.histplot(data=df, y="test_score", bins=bins, ax=axs_f[0])

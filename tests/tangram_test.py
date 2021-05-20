@@ -49,6 +49,7 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
     tg.pp_adatas(ad_sc_mock, ad_sp_mock, genes)
 
     assert ad_sc_mock.uns["training_genes"] == ad_sp_mock.uns["training_genes"]
+    assert ad_sc_mock.uns["overlap_genes"] == ad_sp_mock.uns["overlap_genes"]
     assert ad_sc_mock.X.any(axis=0).all() and ad_sp_mock.X.any(axis=0).all()
     assert "rna_count_based_density" in ad_sp_mock.obs.keys()
     assert "uniform_density" in ad_sp_mock.obs.keys()
@@ -185,9 +186,12 @@ def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
         cluster_label="subclass_label",
         scale=scale,
     )
+
     df_all_genes = tg.compare_spatial_geneexp(ad_ge, adatas[1])
 
-    avg_score_df = round(df_all_genes["score"].mean(), 5)
+    avg_score_df = round(
+        df_all_genes[df_all_genes["is_training"] == True]["score"].mean(), 5
+    )
     avg_score_train_hist = round(
         list(ad_map.uns["training_history"]["main_loss"])[-1], 5
     )

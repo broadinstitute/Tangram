@@ -32,8 +32,8 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
         genes (List): Optional. List of genes to use. If `None`, all genes are used.
     
     Returns:
-        update adata_sc by creating `uns` `training_genes` field 
-        update adata_sp by creating `uns` `training_genes` field and creating `obs` `rna_count_based_density` & `uniform_density` field
+        update adata_sc by creating `uns` `training_genes` `overlap_genes` fields 
+        update adata_sp by creating `uns` `training_genes` `overlap_genes` fields and creating `obs` `rna_count_based_density` & `uniform_density` field
     """
 
     # put all var index to lower case to align
@@ -55,12 +55,26 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
 
     # Refine `marker_genes` so that they are shared by both adatas
     genes = list(set(genes) & set(adata_sc.var.index) & set(adata_sp.var.index))
-    logging.info(f"{len(genes)} shared marker genes.")
+    # logging.info(f"{len(genes)} shared marker genes.")
 
     adata_sc.uns["training_genes"] = genes
     adata_sp.uns["training_genes"] = genes
     logging.info(
-        f"training genes list is saved in `uns``training_genes` of both single cell and spatial Anndatas."
+        "{} training genes are saved in `uns``training_genes` of both single cell and spatial Anndatas.".format(
+            len(genes)
+        )
+    )
+
+    # Find overlap genes between two AnnDatas
+    overlap_genes = list(set(adata_sc.var.index) & set(adata_sp.var.index))
+    # logging.info(f"{len(overlap_genes)} shared genes.")
+
+    adata_sc.uns["overlap_genes"] = overlap_genes
+    adata_sp.uns["overlap_genes"] = overlap_genes
+    logging.info(
+        "{} overlapped genes are saved in `uns``overlap_genes` of both single cell and spatial Anndatas.".format(
+            len(overlap_genes)
+        )
     )
 
     # Calculate uniform density prior as 1/number_of_spots
@@ -122,11 +136,12 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 def map_cells_to_space(
     adata_sc,
     adata_sp,
+    cv_train_genes=None,
+    cluster_label=None,
     mode="cells",
-    device="cuda:0",
+    device="cpu",
     learning_rate=0.1,
     num_epochs=1000,
-    cluster_label=None,
     scale=True,
     lambda_d=0,
     lambda_g1=1,
@@ -145,11 +160,14 @@ def map_cells_to_space(
     is provided, resume from previous mapping.
 
     Args:
-
         adata_sc (AnnData): single cell data
         adata_sp (AnnData): gene spatial data
-        cluster_label (string): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
-        mode (string): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'
+        cv_train_genes (list): Optional. Training gene list. Default is None.
+        cluster_label (str): Optional. the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping.
+        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'.
+        device (string or torch.device): Optional. Default is 'cpu'.
+        learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
+        num_epochs (int): Optional. Number of epochs. Default is 1000.
         scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
         lambda_d (float): Optional. Hyperparameter for the density term of the optimizer. Default is 0.
         lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
@@ -158,13 +176,10 @@ def map_cells_to_space(
         lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
         lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
         target_count (int): Optional. The number of cells to be filtered. Default is None.
-        num_epochs (int): Optional. Number of epochs. Default is 1000.
-        learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
-        device (string or torch.device): Optional. Default is 'cpu'.
-        experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is True.
-        density_prior (ndarray or string): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+        density_prior (ndarray or str): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+        experiment (str): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
 
     Returns:
         a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
@@ -193,16 +208,24 @@ def map_cells_to_space(
         )
 
     # Check if training_genes key exist/is valid in adatas.uns
-    if "training_genes" not in adata_sc.uns.keys():
+    if not set(["training_genes", "overlap_genes"]).issubset(set(adata_sc.uns.keys())):
         raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
-    if "training_genes" not in adata_sp.uns.keys():
+    if not set(["training_genes", "overlap_genes"]).issubset(set(adata_sp.uns.keys())):
         raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
 
     assert list(adata_sp.uns["training_genes"]) == list(adata_sc.uns["training_genes"])
 
-    # get traiing_genes
-    training_genes = adata_sc.uns["training_genes"]
+    # get training_genes
+    if cv_train_genes is None:
+        training_genes = adata_sc.uns["training_genes"]
+    elif cv_train_genes is not None:
+        if set(cv_train_genes).issubset(set(adata_sc.uns["training_genes"])):
+            training_genes = cv_train_genes
+        else:
+            raise ValueError(
+                "Given training genes list should be subset of two AnnDatas."
+            )
 
     logging.info("Allocate tensors for mapping.")
     # Allocate tensors (AnnData matrix can be sparse or not)

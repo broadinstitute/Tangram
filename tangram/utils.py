@@ -150,7 +150,7 @@ def project_cell_annotations(adata_map, adata_sp, annotation="cell_type"):
 
 def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     """
-        Transfer gene expression from the single cell onto space.
+    Transfer gene expression from the single cell onto space.
 
     Args:
         adata_map (AnnData): single cell data
@@ -179,7 +179,9 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     if hasattr(adata_sc.X, "toarray"):
         adata_sc.X = adata_sc.X.toarray()
     X_space = adata_map.X.T @ adata_sc.X
-    adata_ge = sc.AnnData(X=X_space, obs=adata_map.var, var=adata_sc.var)
+    adata_ge = sc.AnnData(
+        X=X_space, obs=adata_map.var, var=adata_sc.var, uns=adata_sc.uns
+    )
     training_genes = adata_map.uns["train_genes_df"].index.values
     adata_ge.var["is_training"] = adata_ge.var.index.isin(training_genes)
     return adata_ge
@@ -189,7 +191,7 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None):
     """ This function compares generated spatial data with the true spatial data
 
     Args:
-        adata_ge (AnnData): single cell data
+        adata_ge (AnnData): generated spatial data returned by `project_genes`
         adata_sp (AnnData): gene spatial data
         adata_sc (AnnData): Optional. When passed, sparsity difference between adata_sc and adata_sp will be calculated. Default is None.
 
@@ -199,9 +201,19 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None):
 
     logger_root = logging.getLogger()
     logger_root.disabled = True
-    mu.pp_adatas(adata_ge, adata_sp)
 
-    overlap_genes = adata_ge.uns["training_genes"]
+    # Check if training_genes/overlap_genes key exist/is valid in adatas.uns
+    if not set(["training_genes", "overlap_genes"]).issubset(set(adata_sp.uns.keys())):
+        raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
+
+    if not set(["training_genes", "overlap_genes"]).issubset(set(adata_ge.uns.keys())):
+        raise ValueError(
+            "Missing tangram parameters. Use `project_genes()` to get adata_ge."
+        )
+
+    assert list(adata_sp.uns["overlap_genes"]) == list(adata_ge.uns["overlap_genes"])
+
+    overlap_genes = adata_ge.uns["overlap_genes"]
 
     annotate_gene_sparsity(adata_sp)
 
@@ -229,8 +241,14 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None):
     df_g["sparsity_sp"] = adata_sp[:, overlap_genes].var.sparsity
 
     if adata_sc is not None:
-        mu.pp_adatas(adata_sc, adata_sp)
-        assert overlap_genes == adata_sc.uns["training_genes"]
+        if not set(["training_genes", "overlap_genes"]).issubset(
+            set(adata_sc.uns.keys())
+        ):
+            raise ValueError("Missing tangram parameters. Run `pp_adatas()`.")
+
+        assert list(adata_sc.uns["overlap_genes"]) == list(
+            adata_sp.uns["overlap_genes"]
+        )
         annotate_gene_sparsity(adata_sc)
 
         df_g = df_g.merge(
@@ -361,17 +379,11 @@ def cross_val(
     for train_genes, test_genes, in tqdm(
         cv_data_gen(adata_sc, adata_sp, cv_mode), total=length
     ):
-        # Check if training_genes key exist/is valid in adatas.uns
-        mu.pp_adatas(adata_sc, adata_sp, train_genes)
-        assert list(adata_sp.uns["training_genes"]) == list(
-            adata_sc.uns["training_genes"]
-        )
-        assert set(adata_sp.uns["training_genes"]) == set(train_genes)
-
         # train
         adata_map = mu.map_cells_to_space(
             adata_sc=adata_sc,
             adata_sp=adata_sp,
+            cv_train_genes=train_genes,
             mode=mode,
             device=device,
             learning_rate=learning_rate,
