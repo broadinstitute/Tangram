@@ -34,7 +34,6 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
     Returns:
         update adata_sc by creating `uns` `training_genes` field 
         update adata_sp by creating `uns` `training_genes` field and creating `obs` `rna_count_based_density` & `uniform_density` field
-
     """
 
     # put all var index to lower case to align
@@ -170,7 +169,6 @@ def map_cells_to_space(
     Returns:
         a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
         The `uns` field of the returned AnnData contains the training genes.
-
     """
 
     # check invalid values for arguments

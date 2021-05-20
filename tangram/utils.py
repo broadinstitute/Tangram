@@ -298,8 +298,11 @@ def cross_val(
     lambda_g1=1,
     lambda_g2=0,
     lambda_r=0,
+    lambda_count=1,
+    lambda_f_reg=1,
+    target_count=None,
     num_epochs=1000,
-    device="cpu",
+    device="cuda:0",
     learning_rate=0.1,
     cv_mode="loo",
     return_gene_pred=False,
@@ -308,7 +311,8 @@ def cross_val(
     random_state=None,
     verbose=False,
 ):
-    """ This function executes cross validation
+    """
+    This function executes cross validation
 
     Args:
         adata_sc (AnnData): single cell data
@@ -320,9 +324,12 @@ def cross_val(
         lambda_d (float): Optional. Strength of density regularizer. Default is 0.
         lambda_g2 (float): Optional. Strength of voxel-gene regularizer. Default is 0.
         lambda_r (float): Optional. Strength of entropy regularizer. Default is 0.
+        lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
+        lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
+        target_count (int): Optional. The number of cells to be filtered. Default is None.
         num_epochs (int): Optional. Number of epochs. Default is 1000.
         learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
-        device (str or torch.device): Optional. Default is 'cpu'.
+        device (str or torch.device): Optional. Default is 'cuda:0'.
         cv_mode (str): Optional. cross validation mode, 'loo' ('leave-one-out') and '10fold' supported. Default is 'loo'.
         return_gene_pred (bool): Optional. if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False.
         density_prior (ndarray or str): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
@@ -363,8 +370,8 @@ def cross_val(
 
         # train
         adata_map = mu.map_cells_to_space(
-            adata_cells=adata_sc,
-            adata_space=adata_sp,
+            adata_sc=adata_sc,
+            adata_sp=adata_sp,
             mode=mode,
             device=device,
             learning_rate=learning_rate,
@@ -375,6 +382,9 @@ def cross_val(
             lambda_g1=lambda_g1,
             lambda_g2=lambda_g2,
             lambda_r=lambda_r,
+            lambda_count=lambda_count,
+            lambda_f_reg=lambda_f_reg,
+            target_count=target_count,
             random_state=random_state,
             verbose=False,
             density_prior=density_prior,
