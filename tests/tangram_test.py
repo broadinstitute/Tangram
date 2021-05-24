@@ -23,6 +23,12 @@ def adatas():
 
 
 @pytest.fixture
+def df_all_genes():
+    df_all_genes = pd.read_csv("test_data/test_df.csv", index_col=0)
+    return df_all_genes
+
+
+@pytest.fixture
 def ad_sc_mock():
     X = np.array([[0, 1, 1], [0, 1, 1]])
     obs = pd.DataFrame(index=["cell_1", "cell_2"])
@@ -210,4 +216,10 @@ def test_train_score_match(
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
     assert avg_score_df == approx(avg_score_train_hist)
+
+
+# test cross validation function
+def test_eval_metric(df_all_genes):
+    auc_score = tg.eval_metric(df_all_genes)[0]["auc_score"]
+    assert auc_score == approx(0.750597829464878)
 

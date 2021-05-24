@@ -197,7 +197,8 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None, genes=None):
         genes (list): Optional. When passed, returned output will be subset on the list of genes. Default is None.
 
     Returns:
-        Pandas Dataframe: a dataframe with columns: 'score', 'is_training', 'sparsity_sp'(spatial data sparsity), 'sparsity_sc'(single cell data sparsity), 'sparsity_diff'(spatial sparsity - single cell sparsity)
+        Pandas Dataframe: a dataframe with columns: 'score', 'is_training', 'sparsity_sp'(spatial data sparsity). 
+                          Columns - 'sparsity_sc'(single cell data sparsity), 'sparsity_diff'(spatial sparsity - single cell sparsity) returned only when adata_sc is passed.
     """
 
     logger_root = logging.getLogger()
@@ -364,6 +365,7 @@ def cross_val(
     Returns:
         cv_dict (dict): a dictionary contains information of cross validation (hyperparameters, average test score and train score, etc.)
         adata_ge_cv (AnnData): predicted spatial data by LOOCV. Only returns when `return_gene_pred` is True and in 'loo' mode.
+        test_gene_df (Pandas dataframe): dataframe with columns: 'score', 'is_training', 'sparsity_sp'(spatial data sparsity)
     """
 
     logger_root = logging.getLogger()
@@ -527,10 +529,10 @@ def eval_metric(df_all_genes, test_genes=None):
     train_score_avg = df_all_genes[df_all_genes["is_training"] == True]["score"].mean()
 
     # sp sparsity weighted score
-    # test_score_sps_sp_g2 = np.sum(
-    #     (test_gene_scores * (1 - test_gene_sparsity_sp))
-    #     / (1 - test_gene_sparsity_sp).sum()
-    # )
+    test_score_sps_sp_g2 = np.sum(
+        (test_gene_scores * (1 - test_gene_sparsity_sp))
+        / (1 - test_gene_sparsity_sp).sum()
+    )
 
     # tm metric
     # Fit polynomial'
@@ -569,7 +571,7 @@ def eval_metric(df_all_genes, test_genes=None):
     metric_dict = {
         "avg_test_score": test_score_avg,
         "avg_train_score": train_score_avg,
-        # "sp_sparsity_score": test_score_sps_sp_g2,
+        "sp_sparsity_score": test_score_sps_sp_g2,
         "auc_score": auc_test_score,
     }
 
