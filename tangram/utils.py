@@ -214,7 +214,10 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None, genes=None):
 
     assert list(adata_sp.uns["overlap_genes"]) == list(adata_ge.uns["overlap_genes"])
 
-    overlap_genes = adata_ge.uns["overlap_genes"]
+    if genes is None:
+        overlap_genes = adata_ge.uns["overlap_genes"]
+    else:
+        overlap_genes = genes
 
     annotate_gene_sparsity(adata_sp)
 
@@ -282,7 +285,6 @@ def cv_data_gen(adata_sc, adata_sp, cv_mode="loo"):
 
     Yields:
         tuple: list of train_genes, list of test_genes
-
     """
 
     # Check if training_genes key exist/is valid in adatas.uns
@@ -305,7 +307,7 @@ def cv_data_gen(adata_sc, adata_sp, cv_mode="loo"):
         cv = KFold(n_splits=10)
 
     for train_idx, test_idx in cv.split(genes_array):
-        train_genes = genes_array[train_idx]
+        train_genes = list(genes_array[train_idx])
         test_genes = list(genes_array[test_idx])
         yield train_genes, test_genes
 
@@ -424,15 +426,11 @@ def cross_val(
 
         # output test genes dataframe
         if mode == "clusters":
-            df_g = compare_spatial_geneexp(
-                adata_ge, adata_sp[:, cv_genes], adata_sc_agg[:, cv_genes]
-            )
+            df_g = compare_spatial_geneexp(adata_ge, adata_sp, adata_sc_agg, cv_genes)
         else:
-            df_g = compare_spatial_geneexp(
-                adata_ge, adata_sp[:, cv_genes], adata_sc[:, cv_genes]
-            )
+            df_g = compare_spatial_geneexp(adata_ge, adata_sp, adata_sc, cv_genes)
 
-        test_df = df_g[df_g.index == test_genes]
+        test_df = df_g[df_g.index.isin(test_genes)]
         test_score = df_g.loc[test_genes]["score"].mean()
         train_score = list(adata_map.uns["training_history"]["main_loss"])[-1]
 
