@@ -465,68 +465,6 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     plt.tight_layout()
 
 
-def plot_cv_test_scores(adata_sc, adata_sp, df_gene_score, bins=10, alpha=0.7):
-    """
-    This function plot gene level test scores with each gene's sparsity for Leave-One-Out cv result.
-    
-    Args:
-        adata_sc (AnnData): single cell data used for the cross validation.
-        adata_sp (AnnData): spatial data used for the cross validation.
-        df_gene_score (Pandas dataframe): "gene names" is the index and "test_score" is the column.
-        bins (int or string): Optional. Default is 10.
-        alpha (float): Optional. Ranges from 0-1, and controls the opacity. Default is 0.7.
-
-    Returns:
-        None
-    """
-
-    mu.pp_adatas(adata_sc, adata_sp)
-    assert list(adata_sc.uns["training_genes"]) == list(adata_sp.uns["training_genes"])
-    training_genes = adata_sc.uns["training_genes"]
-
-    ut.annotate_gene_sparsity(adata_sc)
-    ut.annotate_gene_sparsity(adata_sp)
-
-    df = pd.concat(
-        [
-            df_gene_score["test_score"],
-            adata_sc[:, training_genes].var["sparsity"],
-            adata_sp[:, training_genes].var["sparsity"],
-            (
-                adata_sp[:, training_genes].var["sparsity"]
-                - adata_sc[:, training_genes].var["sparsity"]
-            ),
-        ],
-        axis=1,
-    )
-    df.columns = ["test_score", "sparsity_sc", "sparsity_sp", "sparsity_diff"]
-
-    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
-    axs_f = axs.flatten()
-
-    # set limits for axis
-    axs_f[0].set_ylim([0.0, 1.0])
-    for i in range(1, len(axs_f)):
-        axs_f[i].set_xlim([0.0, 1.0])
-        axs_f[i].set_ylim([0.0, 1.0])
-
-    axs_f[0].set_title("Test scores for single genes")
-    sns.histplot(data=df, y="test_score", bins=bins, ax=axs_f[0])
-
-    axs_f[1].set_title("score vs sparsity (single cells)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sc", ax=axs_f[1], alpha=alpha)
-
-    axs_f[2].set_title("score vs sparsity (spatial)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sp", ax=axs_f[2], alpha=alpha)
-
-    axs_f[3].set_title("score vs sparsity (sp - sc)")
-    sns.scatterplot(
-        data=df, y="test_score", x="sparsity_diff", ax=axs_f[3], alpha=alpha
-    )
-
-    plt.tight_layout()
-
-
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
     "L6 CT": (0.19215686274509805, 0.5098039215686274, 0.7411764705882353),

@@ -187,13 +187,14 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     return adata_ge
 
 
-def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None):
+def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None, genes=None):
     """ This function compares generated spatial data with the true spatial data
 
     Args:
         adata_ge (AnnData): generated spatial data returned by `project_genes`
         adata_sp (AnnData): gene spatial data
         adata_sc (AnnData): Optional. When passed, sparsity difference between adata_sc and adata_sp will be calculated. Default is None.
+        genes (list): Optional. When passed, returned output will be subset on the list of genes. Default is None.
 
     Returns:
         Pandas Dataframe: a dataframe with columns: 'score', 'is_training', 'sparsity_sp'(spatial data sparsity), 'sparsity_sc'(single cell data sparsity), 'sparsity_diff'(spatial sparsity - single cell sparsity)
@@ -263,6 +264,9 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None):
         logging.info(
             "To create dataframe with column 'sparsity_sc' or 'aprsity_diff', please also pass adata_sc to the function."
         )
+
+    if genes is not None:
+        df_g = df_g.loc[genes]
 
     df_g = df_g.sort_values(by="score", ascending=False)
     return df_g
@@ -369,6 +373,7 @@ def cross_val(
     test_pred_list = []
     test_score_list = []
     train_score_list = []
+    test_df_list = []
     curr_cv_set = 1
 
     if cv_mode == "loo":
@@ -376,7 +381,10 @@ def cross_val(
     elif cv_mode == "10fold":
         length = 10
 
-    for train_genes, test_genes, in tqdm(
+    if mode == "clusters":
+        adata_sc_agg = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale)
+
+    for train_genes, test_genes in tqdm(
         cv_data_gen(adata_sc, adata_sp, cv_mode), total=length
     ):
         # train
@@ -402,9 +410,11 @@ def cross_val(
             density_prior=density_prior,
         )
 
+        cv_genes = train_genes + test_genes
+
         # project on space
         adata_ge = project_genes(
-            adata_map, adata_sc, cluster_label=cluster_label, scale=scale
+            adata_map, adata_sc[:, cv_genes], cluster_label=cluster_label, scale=scale,
         )
 
         # retrieve result for test gene (genes X cluster/cell)
@@ -412,15 +422,25 @@ def cross_val(
             adata_ge_test = adata_ge[:, test_genes].X.T
             test_pred_list.append(adata_ge_test)
 
-        # output scores
-        df_g = compare_spatial_geneexp(adata_ge, adata_sp)
-        test_score = df_g[df_g["is_training"] == False]["score"].mean()
+        # output test genes dataframe
+        if mode == "clusters":
+            df_g = compare_spatial_geneexp(
+                adata_ge, adata_sp[:, cv_genes], adata_sc_agg[:, cv_genes]
+            )
+        else:
+            df_g = compare_spatial_geneexp(
+                adata_ge, adata_sp[:, cv_genes], adata_sc[:, cv_genes]
+            )
+
+        test_df = df_g[df_g.index == test_genes]
+        test_score = df_g.loc[test_genes]["score"].mean()
         train_score = list(adata_map.uns["training_history"]["main_loss"])[-1]
 
         # output avg score
         test_genes_list.append(test_genes)
         test_score_list.append(test_score)
         train_score_list.append(train_score)
+        test_df_list.append(test_df)
 
         if verbose == True:
             msg = "cv set: {}----train score: {:.3f}----test score: {:.3f}".format(
@@ -457,6 +477,9 @@ def cross_val(
 
     if cv_mode == "loo" and return_gene_pred:
 
+        # output df_test_genes dataframe
+        test_gene_df = pd.concat(test_df_list, axis=0)
+
         # output AnnData for generated spatial data by LOOCV
         adata_ge_cv = sc.AnnData(
             X=np.squeeze(test_pred_list).T,
@@ -468,7 +491,7 @@ def cross_val(
             ),
         )
 
-        return cv_dict, adata_ge_cv
+        return cv_dict, adata_ge_cv, test_gene_df
 
     return cv_dict
 
@@ -479,11 +502,10 @@ def eval_metric(df_all_genes, test_genes=None):
     
     Args:
         df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp); 
-                                         with "gene names" as the index and "score", "is_training", "sparsity_sp" as the columns
         test_genes (list): list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
 
     Returns:      
-        dict with values of each evaluation metric ("avg_test_score", "avg_train_score", "sp_sparsity_score", "auc_score"), 
+        dict with values of each evaluation metric ("avg_test_score", "avg_train_score", "auc_score"), 
         tuple of auc fitted coordinates and raw coordinates(test_score vs. sparsity_sp coordinates)
     """
 
@@ -507,16 +529,16 @@ def eval_metric(df_all_genes, test_genes=None):
     train_score_avg = df_all_genes[df_all_genes["is_training"] == True]["score"].mean()
 
     # sp sparsity weighted score
-    test_score_sps_sp_g2 = np.sum(
-        (test_gene_scores * (1 - test_gene_sparsity_sp))
-        / (1 - test_gene_sparsity_sp).sum()
-    )
+    # test_score_sps_sp_g2 = np.sum(
+    #     (test_gene_scores * (1 - test_gene_sparsity_sp))
+    #     / (1 - test_gene_sparsity_sp).sum()
+    # )
 
     # tm metric
     # Fit polynomial'
     xs = list(test_gene_scores)
     ys = list(test_gene_sparsity_sp)
-    pol_deg = 3
+    pol_deg = 2
     pol_cs = np.polyfit(xs, ys, pol_deg)  # polynomial coefficients
     pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
     pol = np.poly1d(pol_cs)  # build polynomial as function
@@ -549,7 +571,7 @@ def eval_metric(df_all_genes, test_genes=None):
     metric_dict = {
         "avg_test_score": test_score_avg,
         "avg_train_score": train_score_avg,
-        "sp_sparsity_score": test_score_sps_sp_g2,
+        # "sp_sparsity_score": test_score_sps_sp_g2,
         "auc_score": auc_test_score,
     }
 

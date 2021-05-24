@@ -194,13 +194,15 @@ def map_cells_to_space(
         raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
 
     if mode not in ["clusters", "cells", "constrained"]:
-        raise ValueError('Argument "mode" must be "cells" or "clusters"')
+        raise ValueError('Argument "mode" must be "cells", "clusters" or "constrained')
 
     if mode == "clusters" and cluster_label is None:
         raise ValueError("A cluster_label must be specified if mode is 'clusters'.")
 
-    if mode == "constrained" and target_count is None:
-        raise ValueError("target_count must be specified if mode is 'constrained'.")
+    if mode == "constrained" and not all([target_count, lambda_f_reg, lambda_count]):
+        raise ValueError(
+            "target_count, lambda_f_reg and lambda_count must be specified if mode is 'constrained'."
+        )
 
     if mode == "clusters":
         adata_sc = adata_to_cluster_expression(

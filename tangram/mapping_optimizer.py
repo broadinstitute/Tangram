@@ -246,7 +246,10 @@ class MapperConstrained:
         """
         self.S = torch.tensor(S, device=device, dtype=torch.float32)
         self.G = torch.tensor(G, device=device, dtype=torch.float32)
-        self.d = torch.tensor(d, device=device, dtype=torch.float32)
+
+        self.target_density_enabled = d is not None
+        if self.target_density_enabled:
+            self.d = torch.tensor(d, device=device, dtype=torch.float32)
 
         self.lambda_d = lambda_d
         self.lambda_g1 = lambda_g1
@@ -295,10 +298,14 @@ class MapperConstrained:
         F_probs = torch.sigmoid(self.F)
 
         M_probs_filtered = M_probs * F_probs[:, np.newaxis]
-        d_pred = torch.log(
-            M_probs_filtered.sum(axis=0) / (F_probs.sum())
-        )  # KL wants the log in first argument
-        density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
+
+        if self.target_density_enabled:
+            d_pred = torch.log(
+                M_probs_filtered.sum(axis=0) / (F_probs.sum())
+            )  # KL wants the log in first argument
+            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
+        else:
+            density_term = None
 
         S_filtered = self.S * F_probs[:, np.newaxis]
 
@@ -356,9 +363,9 @@ class MapperConstrained:
 
             print(str(msg).replace("[", "").replace("]", "").replace("'", ""))
 
-        total_loss = (
-            density_term - expression_term - regularizer_term + count_term + f_reg
-        )
+        total_loss = -expression_term - regularizer_term + count_term + f_reg
+        if density_term is not None:
+            total_loss = total_loss + density_term
 
         return (
             total_loss,

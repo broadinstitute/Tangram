@@ -150,28 +150,40 @@ def test_invalid_map_cells_to_space(
 
 
 @pytest.mark.parametrize(
-    "lambda_g1, lambda_g2, lambda_d, scale",
+    "mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale, target_count",
     [
-        (1, 0, 0, True),
-        (1, 0, 0, False),
-        (1, 1, 0, True),
-        (1, 1, 0, False),
-        (1, 0, 1, True),
-        (1, 0, 1, False),
+        ("clusters", "subclass_label", 1, 0, 0, None, True, None),
+        ("clusters", "subclass_label", 1, 0, 0, None, False, None),
+        ("clusters", "subclass_label", 1, 1, 0, None, True, None),
+        ("clusters", "subclass_label", 1, 1, 0, None, False, None),
+        ("clusters", "subclass_label", 1, 0, 1, "uniform", True, None),
+        ("clusters", "subclass_label", 1, 0, 1, "rna_count_based", False, None),
     ],
 )
-def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
+def test_train_score_match(
+    adatas,
+    mode,
+    cluster_label,
+    lambda_g1,
+    lambda_g2,
+    lambda_d,
+    density_prior,
+    scale,
+    target_count,
+):
 
     # mapping with defined random_state
     ad_map = tg.map_cells_to_space(
         adata_sc=adatas[0],
         adata_sp=adatas[1],
         device="cpu",
-        mode="clusters",
-        cluster_label="subclass_label",
+        mode=mode,
+        cluster_label=cluster_label,
         lambda_g1=lambda_g1,
         lambda_g2=lambda_g2,
         lambda_d=lambda_d,
+        density_prior=density_prior,
+        target_count=target_count,
         scale=scale,
         random_state=42,
         num_epochs=500,
@@ -198,3 +210,4 @@ def test_train_score_match(adatas, lambda_g1, lambda_g2, lambda_d, scale):
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
     assert avg_score_df == approx(avg_score_train_hist)
+
