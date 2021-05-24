@@ -134,14 +134,17 @@ def project_cell_annotations(adata_map, adata_sp, annotation="cell_type"):
     Args:
         adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
         adata_sp (AnnData): spatial data used to save the mapping result.
-        annotation (str): Cell annotations matrix with shape (number_cells, number_annotations).
+        annotation (str): Optional. Cell annotations matrix with shape (number_cells, number_annotations). Default is 'cell_type'.
 
     Returns:
+        None.
         update spatial Anndata by creating `obsm` `tangram_ct_result` field with a dataframe with spatial prediction for each annotation (number_spots, number_annotations) 
     """
+
     df = one_hot_encoding(adata_map.obs[annotation])
     df_ct_prob = adata_map.X.T @ df
     df_ct_prob.index = adata_map.var.index
+
     adata_sp.obsm["tangram_ct_result"] = df_ct_prob
     logging.info(
         f"spatial prediction dataframe is saved in `obsm` `tangram_ct_result` of the spatial AnnData."
@@ -459,11 +462,6 @@ def cross_val(
     avg_train_score = np.nanmean(train_score_list)
 
     cv_dict = {
-        "mode": cv_mode,
-        "weighting": scale,
-        "lambda_d": lambda_d,
-        "lambda_g1": lambda_g1,
-        "lambda_g2": lambda_g2,
         "avg_test_score": avg_test_score,
         "avg_train_score": avg_train_score,
     }

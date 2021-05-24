@@ -184,7 +184,7 @@ class Mapper:
             loss = run_loss[0]
 
             for i in range(len(keys)):
-                training_history[keys[i]].append(run_loss[i])
+                training_history[keys[i]].append(str(run_loss[i]))
 
             if experiment:
                 for i in range(1, len(keys)):
@@ -419,7 +419,7 @@ class MapperConstrained:
             loss = run_loss[0]
 
             for i in range(len(keys)):
-                training_history[keys[i]].append(run_loss[i])
+                training_history[keys[i]].append(str(run_loss[i]))
 
             if experiment:
                 for i in range(1, len(keys)):
