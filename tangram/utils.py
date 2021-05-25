@@ -151,7 +151,7 @@ def project_cell_annotations(
     df_ct_prob = adata_map.X.T @ df
     df_ct_prob.index = adata_map.var.index
 
-    adata_sp.obsm["tangram_ct_result"] = df_ct_prob
+    adata_sp.obsm["tangram_ct_pred"] = df_ct_prob
     logging.info(
         f"spatial prediction dataframe is saved in `obsm` `tangram_ct_pred` of the spatial AnnData."
     )
@@ -229,7 +229,7 @@ def count_cell_annotations(
 
 def segment(segmentation_df, cell_types, adata_sp):
     """
-    Prepare a AnnData structure for visualization purpose later.
+    Prepare a AnnData structure for visualizaing deconvolution result.
 
     Args:
         segmentation_df (Pandas dataframe): Each row represents a segmentation object (single cell/nuclei), with columns - 'spot_idx' (voxel id), and 'y', 'x', 'centroids' to specify the position of the segmentation object.
@@ -240,7 +240,7 @@ def segment(segmentation_df, cell_types, adata_sp):
         adata_sp (AnnData): spatial AnnData structure.
 
     Returns:
-        AnnData: for visualization.
+        AnnData: for deconvolution visualization.
     """
 
     if "tangram_ct_count" not in adata_sp.obsm.keys():
