@@ -127,7 +127,9 @@ def one_hot_encoding(l, keep_aggregate=False):
     return df_enriched
 
 
-def project_cell_annotations(adata_map, adata_sp, annotation="cell_type"):
+def project_cell_annotations(
+    adata_map, adata_sp, annotation="cell_type", threshold=0.5
+):
     """
     Transfer `annotation` from single cell data onto space. 
 
@@ -135,20 +137,136 @@ def project_cell_annotations(adata_map, adata_sp, annotation="cell_type"):
         adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
         adata_sp (AnnData): spatial data used to save the mapping result.
         annotation (str): Optional. Cell annotations matrix with shape (number_cells, number_annotations). Default is 'cell_type'.
-
+        threshold (float): Optional. Valid for using with adata_map.obs['F_out'] from 'constrained' mode mapping. 
+                           Cell's probability below this threshold will be dropped. Default is 0.5.
     Returns:
         None.
-        update spatial Anndata by creating `obsm` `tangram_ct_result` field with a dataframe with spatial prediction for each annotation (number_spots, number_annotations) 
+        Update spatial Anndata by creating `obsm` `tangram_ct_pred` field with a dataframe with spatial prediction for each annotation (number_spots, number_annotations) 
     """
 
     df = one_hot_encoding(adata_map.obs[annotation])
+    if "F_out" in adata_map.obs.keys():
+        df_ct_prob = adata_map[adata_map.obs["F_out"] > threshold]
+
     df_ct_prob = adata_map.X.T @ df
     df_ct_prob.index = adata_map.var.index
 
     adata_sp.obsm["tangram_ct_result"] = df_ct_prob
     logging.info(
-        f"spatial prediction dataframe is saved in `obsm` `tangram_ct_result` of the spatial AnnData."
+        f"spatial prediction dataframe is saved in `obsm` `tangram_ct_pred` of the spatial AnnData."
     )
+
+
+def count_cell_annotations(
+    adata_map,
+    adata_sc,
+    adata_sp,
+    xs,
+    ys,
+    centroids,
+    cell_count,
+    annotation="cell_type",
+    threshold=0.5,
+):
+    """
+    Count cells in a voxel for each annotations
+    
+    Args:
+        adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
+        adata_sc (AnnData): cell-by-gene AnnData.
+        adata_sp (AnnData): spatial AnnData data used to save the mapping result.
+        xs (sequence): x coordinates for each voxel
+        ys (sequence): y coordinates for each voxel
+        centroids (sequence): centroids id for each voxel.
+        cell_counts (sequence): cell counts for each voxel.
+        annotation (str): Optional. Cell annotations matrix with shape (number_cells, number_annotations). Default is 'cell_type'.
+        threshold (float): Optional. Valid for using with adata_map.obs['F_out'] from 'constrained' mode mapping. 
+                           Cell's probability below this threshold will be dropped. Default is 0.5.
+    
+    Returns:
+        None.
+        Update spatial Anndata by creating `obsm` `tangram_ct_count` field with a dataframe with spatial cell count for each annotation (number_spots, number_annotations).
+    
+    """
+
+    # create a dataframe
+    df_vox_cells = df_vox_cells = pd.DataFrame(
+        data={"x": xs, "y": ys, "cell_n": cell_count, "centroids": centroids},
+        index=list(adata_sp.obs.index),
+    )
+
+    # get the most probable voxel for each cell
+    resulting_voxels = np.argmax(adata_map.X, axis=1)
+
+    # create a list with filtered cells and the voxels where they have been placed with the
+    # highest probability a cell i is filtered if F_i > threshold'
+    if "F_out" in adata_map.obs.keys():
+        filtered_voxels_to_types = [
+            (j, adata_sc.obs[annotation][k])
+            for i, j, k in zip(
+                adata_map.obs["F_out"], resulting_voxels, range(len(adata_sc))
+            )
+            if i > threshold
+        ]
+
+        vox_ct = filtered_voxels_to_types
+
+    else:
+        vox_ct = [(resulting_voxels, adata_sc.obs[annotation])]
+
+    df_classes = one_hot_encoding(adata_sc.obs[annotation])
+    for index, i in enumerate(df_classes.columns):
+        df_vox_cells[i] = 0
+
+    for k, v in vox_ct:
+        df_vox_cells.iloc[k, df_vox_cells.columns.get_loc(v)] += 1
+
+    adata_sp.obsm["tangram_ct_count"] = df_vox_cells
+    logging.info(
+        f"spatial cell count dataframe is saved in `obsm` `tangram_ct_count` of the spatial AnnData."
+    )
+
+
+def segment(segmentation_df, cell_types, adata_sp):
+    """
+    Prepare a AnnData structure for visualization purpose later.
+
+    Args:
+        segmentation_df (Pandas dataframe): Each row represents a segmentation object (single cell/nuclei), with columns - 'spot_idx' (voxel id), and 'y', 'x', 'centroids' to specify the position of the segmentation object.
+        df_vox_cells (Pandas dataframe): Columns correspond to cell types. Each row in the DataFrame corresponds to a voxel and
+                                         specifies the known number of cells in that voxel for each cell type (int).
+                                         The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
+        cell_types (sequence): Sequence of cell type names to be considered for deconvolution. Columns in 'df_vox_cells' not included in 'cell_types' are ignored for assignment.
+        adata_sp (AnnData): spatial AnnData structure.
+
+    Returns:
+        AnnData: for visualization.
+    """
+
+    if "tangram_ct_count" not in adata_sp.obsm.keys():
+        raise ValueError("Missing tangram parameters. Run `count_cell_annotations`.")
+
+    df_vox_cells = adata_sp.obsm["tangram_ct_count"]
+    cell_types_mapped = df_to_cell_types(df_vox_cells, cell_types)
+    df_list = []
+    for k in cell_types_mapped.keys():
+        df = pd.DataFrame({"centroids": np.array(cell_types_mapped[k], dtype="object")})
+        df["cluster"] = k
+        df_list.append(df)
+    cluster_df = pd.concat(df_list, axis=0)
+    cluster_df.reset_index(inplace=True, drop=True)
+
+    merged_df = segmentation_df.merge(cluster_df, on="centroids", how="inner")
+    merged_df.drop(columns="spot_idx", inplace=True)
+    merged_df.drop_duplicates(inplace=True)
+    merged_df.dropna(inplace=True)
+    merged_df.reset_index(inplace=True, drop=True)
+
+    adata_segment = sc.AnnData(np.zeros(merged_df.shape), obs=merged_df)
+    adata_segment.obsm["spatial"] = merged_df[["y", "x"]].to_numpy()
+    adata_segment.uns = adata_sp.uns
+
+    return adata_segment
 
 
 def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
@@ -437,7 +555,7 @@ def cross_val(
 
         test_df = df_g[df_g.index.isin(test_genes)]
         test_score = df_g.loc[test_genes]["score"].mean()
-        train_score = list(adata_map.uns["training_history"]["main_loss"])[-1]
+        train_score = np.float(list(adata_map.uns["training_history"]["main_loss"])[-1])
 
         # output avg score
         test_genes_list.append(test_genes)

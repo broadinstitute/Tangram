@@ -211,7 +211,7 @@ def test_train_score_match(
         df_all_genes[df_all_genes["is_training"] == True]["score"].mean(), 5
     )
     avg_score_train_hist = round(
-        list(ad_map.uns["training_history"]["main_loss"])[-1], 5
+        np.float(list(ad_map.uns["training_history"]["main_loss"])[-1]), 5
     )
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function

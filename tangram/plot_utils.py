@@ -202,7 +202,7 @@ def plot_cell_annotation(
 
     ut.project_cell_annotations(adata_map, adata_sp, annotation=annotation)
 
-    df_annotation = adata_sp.obsm["tangram_ct_result"]
+    df_annotation = adata_sp.obsm["tangram_ct_pred"]
 
     #### Colorbar:
     fig, ax = plt.subplots(figsize=(4, 0.4))
