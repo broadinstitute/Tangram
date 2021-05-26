@@ -31,6 +31,7 @@ setuptools.setup(
         "seaborn",
         "scanpy",
         "scikit-learn",
+        "tqdm",
     ],
     extras_require={"experiment_logging": ["comet_ml"]},
 )

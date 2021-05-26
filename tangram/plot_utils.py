@@ -20,10 +20,14 @@ import matplotlib as mpl
 
 def q_value(data, perc):
     """
-    This function produces min and max values according to percentile for color map in plot functions
+    This function produces min and max values according to percentile for colormap in plot functions
+
     Args:
-        data: numpy array
-        perc: percentile
+        data (numpy array): input
+        perc (float): percentile that between 0 and 100 inclusive
+
+    Returns:
+        tuple of floats: will be later used to define the data range covers by the colormap
     """
     vmin = np.nanpercentile(data, perc)
     vmax = np.nanpercentile(data, 100 - perc)
@@ -31,9 +35,17 @@ def q_value(data, perc):
     return vmin, vmax
 
 
-def plot_training_scores(adata_map, bins="auto", alpha=0.7):
+def plot_training_scores(adata_map, bins=10, alpha=0.7):
     """
-    
+    This function plots the 4-panel training diagnosis plot
+
+    Args:
+        adata_map (AnnData):
+        bins (int or string): Optional. Default is 10.
+        alpha (float): Optional. Ranges from 0-1, and controls the opacity. Default is 0.7.
+
+    Returns:
+        None
     """
     fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
     df = adata_map.uns["train_genes_df"]
@@ -46,7 +58,7 @@ def plot_training_scores(adata_map, bins="auto", alpha=0.7):
         axs_f[i].set_ylim([0.0, 1.0])
 
     #     axs_f[0].set_title('Training scores for single genes')
-    sns.histplot(data=df, y="train_score", bins=10, ax=axs_f[0], color="coral")
+    sns.histplot(data=df, y="train_score", bins=bins, ax=axs_f[0], color="coral")
 
     axs_f[1].set_title("score vs sparsity (single cells)")
     sns.scatterplot(
@@ -82,18 +94,32 @@ def plot_training_scores(adata_map, bins="auto", alpha=0.7):
 
 
 def plot_gene_sparsity(
-    adata_1, adata_2, xlabel="adata_1", ylabel="adata_2", s=1, genes=None
+    adata_1, adata_2, xlabel="adata_1", ylabel="adata_2", genes=None, s=1
 ):
     """
-        Compare sparsity of all genes between `adata_1` and `adata_2`.
+    Compare sparsity of all genes between `adata_1` and `adata_2`.
+
+    Args:
+        adata_1 (AnnData): Input data
+        adata_2 (AnnData): Input data
+        xlabel (str): Optional. For setting the xlabel in the plot. Default is 'adata_1'.
+        ylabel (str): Optional. For setting the ylabel in the plot. Default is 'adata_2'.  
+        genes (list): Optional. List of genes to use. If `None`, all genes are used.
+        s (float): Optional. Controls the size of marker. Default is 1.
+
+    Returns:
+        None
     """
     logging.info("Pre-processing AnnDatas...")
     adata_1, adata_2 = mu.pp_adatas(adata_1, adata_2, genes=genes)
+    assert adata_1.uns["training_genes"] == adata_2.uns["training_genes"]
+    training_genes = adata_1.uns["training_genes"]
+
     logging.info("Annotating sparsity...")
     ut.annotate_gene_sparsity(adata_1)
     ut.annotate_gene_sparsity(adata_2)
-    xs = adata_1.var["sparsity"].values
-    ys = adata_2.var["sparsity"].values
+    xs = adata_1[:, training_genes].var["sparsity"].values
+    ys = adata_2[:, training_genes].var["sparsity"].values
     fig, ax = plt.subplots(1, 1)
     ax.set_aspect(1)
     ax.set_xlabel("sparsity (" + xlabel + ")")
@@ -105,11 +131,13 @@ def plot_gene_sparsity(
 def ordered_predictions(xs, ys, preds, reverse=False):
     """
     Utility function that orders 2d points based on values associated to each point.
+
     Args:
-        xs: Sequence of x coordinates (floats).
-        ys: Sequence of y coordinates (floats).
-        ys: Sequence of y coordinates (floats).
-        reverse: Optional. A Boolean. False will sort ascending, True will sort descending. Default is False.
+        xs (Pandas series): Sequence of x coordinates (floats).
+        ys (Pandas series): Sequence of y coordinates (floats).
+        preds (Pandas series): Sequence of spatial prediction.
+        reverse (bool): Optional. False will sort ascending, True will sort descending. Default is False.
+        
     Returns:
         Returns the ordered xs, ys, preds.
     """
@@ -128,29 +156,40 @@ def ordered_predictions(xs, ys, preds, reverse=False):
 
 def plot_cell_annotation(
     adata_map,
+    adata_sp,
     annotation="cell_type",
     x="x",
     y="y",
-    nrows=None,
-    ncols=None,
+    nrows=1,
+    ncols=1,
     s=5,
     cmap="viridis",
-    suptitle_add=False,
+    subtitle_add=False,
     robust=False,
     perc=0,
     invert_y=True,
 ):
     """
-        Transfer an annotation for a single cell dataset onto space, and visualize
-        corresponding spatial probability maps.
-        Args:
-            adata_map: cell-by-spot-AnnData containing mapping result
-            annotation: Must be a column in `adata_map.obs`.
-            x: column name for spots x-coordinates (must be in `adata_map.var`)
-            y: column name for spots y-coordinates (must be in `adata_map.var`)
-            robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-            perc: float, percentile used to calculate colormap range, only used when robust is True
-            s: optional, marker size
+    Transfer an annotation for a single cell dataset onto space, and visualize
+    corresponding spatial probability maps.
+
+    Args:
+        adata_map (AnnData): cell-by-spot AnnData containing mapping result
+        adata_sp (AnnData): spot-by-gene spatial AnnData
+        annotation (str): Optional. Must be a column in `adata_map.obs`. Default is 'cell_type'.
+        x (str): Optional. Column name for spots x-coordinates (must be in `adata_map.var`). Default is 'x'.
+        y (str): Optional. Column name for spots y-coordinates (must be in `adata_map.var`). Default is 'y'.
+        nrows (int): Optional. Number of rows of the subplot grid. Default is 1.
+        ncols (int): Optional. Number of columns of the subplot grid. Default is 1.
+        s (float): Optional. Marker size. Default is 5.
+        cmap (str): Optional. Name of colormap. Default is 'viridis'.
+        subtitle_add (bool): Optional. If add annotation name as the subtitle. Default is False.
+        robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
+        perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
+        invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
+
+    Returns:
+        None
     """
 
     # TODO ADD CHECKS for x and y
@@ -161,7 +200,9 @@ def plot_cell_annotation(
     if robust and perc == 0:
         raise ValueError("Arg perc cannot be zero when robust is True.")
 
-    df_annotation = ut.project_cell_annotations(adata_map, annotation=annotation)
+    ut.project_cell_annotations(adata_map, adata_sp, annotation=annotation)
+
+    df_annotation = adata_sp.obsm["tangram_ct_pred"]
 
     #### Colorbar:
     fig, ax = plt.subplots(figsize=(4, 0.4))
@@ -210,7 +251,7 @@ def plot_cell_annotation(
         if invert_y is True:
             axs_f[index].invert_yaxis()
 
-    if suptitle_add is True:
+    if subtitle_add is True:
         fig.suptitle(annotation)
 
 
@@ -229,16 +270,22 @@ def plot_genes(
 ):
     """
     Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
+    
     Args:
-        genes (list of str): list of gene names.
-        ad_measured (AnnData structure): ground truth gene spatial AnnData
-        ad_predicted (AnnData structure): projected gene spatial AnnData, can also be ad_ge_cv AnnData returned by cross_validation under 'loo' mode
-        x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
-        y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
-        s: Optional. Size of the markder
+        genes (list): list of gene names (str).
+        adata_measured (AnnData): ground truth gene spatial AnnData
+        adata_predicted (AnnData): projected gene spatial AnnData, can also be adata_ge_cv AnnData returned by cross_validation under 'loo' mode
+        x (str): Optional. Column name for spots x-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'x'.
+        y (str): Optional. Column name for spots y-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'y'.
+        s (float): Optional. Marker size. Default is 5.
         log: Optional. Whether to apply the log before plotting. Default is False.
-        robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-        perc: float, percentile used to calculate colormap range, only used when robust is True
+        cmap (str): Optional. Name of colormap. Default is 'inferno'.
+        robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
+        perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
+        invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
+
+    Returns:
+        None
     """
     # TODO: not very elegant and slow as hell
 
@@ -269,12 +316,17 @@ def plot_genes(
     #### Colorbar
 
     fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes) * 3))
+
     for ix, gene in enumerate(genes):
+        if gene not in adata_measured.var.index:
+            vs = np.zeros_like(np.array(adata_measured[:, 0].X).flatten())
+        else:
+            vs = np.array(adata_measured[:, gene].X).flatten()
+
         xs, ys, vs = ordered_predictions(
-            adata_measured.obs[x],
-            adata_measured.obs[y],
-            np.array(adata_measured[:, gene].X).flatten(),
+            adata_measured.obs[x], adata_measured.obs[y], vs,
         )
+
         if log:
             vs = np.log(1 + np.asarray(vs))
         axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
@@ -308,15 +360,20 @@ def quick_plot_gene(
 ):
     """
     Utility function to quickly plot a gene in a AnnData structure ordered by intensity of the gene signal.
+    
     Args:
         gene (str): Gene name.
-        adata: AnnData structure.
-        x: Optional. Name for the first coordinate in AnnData.obs. Default is 'x'.
-        y: Optional. Name for the second coordinate in AnnData.obs. Default is 'y'.
+        adata (AnnData): spot-by-gene spatial data.
+        x (str): Optional. Column name for spots x-coordinates (must be in `adata.var`). Default is 'x'.
+        y (str): Optional. Column name for spots y-coordinates (must be in `adata.var`). Default is 'y'.
+        s (float): Optional. Marker size. Default is 5.
         log: Optional. Whether to apply the log before plotting. Default is False.
-        s: Optional. Size of the markder
-        robust: bool, if True, the colormap range is computed with given percentiles instead of extreme values
-        perc: float, percentile used to calculate colormap range, only used when robust is True
+        cmap (str): Optional. Name of colormap. Default is 'viridis'.
+        robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
+        perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
+
+    Returns:
+        None
     """
     if not robust and perc != 0:
         raise ValueError("Arg perc is zero when robust is False.")
@@ -338,7 +395,14 @@ def quick_plot_gene(
 
 def plot_annotation_entropy(adata_map, annotation="cell_type"):
     """
-        
+    This function plots entropy box plot by each annotation.
+
+    Args:
+        adata_map (AnnData): cell-by-voxel tangram mapping result.
+        annotation (str): Optional. Must be a column in `adata_map.obs`. Default is 'cell_type'.
+
+    Returns:
+        None
     """
     qk = np.ones(shape=(adata_map.n_obs, adata_map.n_vars))
     adata_map.obs["entropy"] = entropy(adata_map.X, base=adata_map.X.shape[1], axis=1)
@@ -346,6 +410,59 @@ def plot_annotation_entropy(adata_map, annotation="cell_type"):
     ax.set_ylim(0, 1)
     sns.boxenplot(x=annotation, y="entropy", data=adata_map.obs, ax=ax)
     plt.xticks(rotation=30)
+
+
+def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
+    """
+    This function plots gene level test scores with each gene's sparsity for mapping result.
+    
+    Args:
+        df_gene_score (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp, adata_sc); 
+                       with "gene names" as the index and "score", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
+        bins (int or string): Optional. Default is 10.
+        alpha (float): Optional. Ranges from 0-1, and controls the opacity. Default is 0.7.
+
+    Returns:
+        None
+    """
+
+    # check if df_gene_score has all required columns
+    if not set(["score", "sparsity_sc", "sparsity_sp", "sparsity_diff"]).issubset(
+        set(df_gene_score.columns)
+    ):
+        raise ValueError(
+            "There are missing columns in df_gene_score. Run `compare_spatial_geneexp` with `adata_ge`, `adata_sp`, and `adata_sc` to produce complete dataframe input."
+        )
+
+    if "is_training" in df_gene_score.keys():
+        df = df_gene_score[df_gene_score["is_training"] == False]
+    else:
+        df = df_gene_score
+
+    df.rename({"score": "test_score"}, axis="columns", inplace=True)
+
+    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
+    axs_f = axs.flatten()
+
+    # set limits for axis
+    axs_f[0].set_ylim([0.0, 1.0])
+    for i in range(1, len(axs_f)):
+        axs_f[i].set_xlim([0.0, 1.0])
+        axs_f[i].set_ylim([0.0, 1.0])
+
+    sns.histplot(data=df, y="test_score", bins=bins, ax=axs_f[0])
+
+    axs_f[1].set_title("score vs sparsity (single cells)")
+    sns.scatterplot(data=df, y="test_score", x="sparsity_sc", ax=axs_f[1], alpha=alpha)
+
+    axs_f[2].set_title("score vs sparsity (spatial)")
+    sns.scatterplot(data=df, y="test_score", x="sparsity_sp", ax=axs_f[2], alpha=alpha)
+
+    axs_f[3].set_title("score vs sparsity (sp - sc)")
+    sns.scatterplot(
+        data=df, y="test_score", x="sparsity_diff", ax=axs_f[3], alpha=alpha
+    )
+    plt.tight_layout()
 
 
 # Colors used in the manuscript for deterministic assignment.
@@ -378,84 +495,4 @@ mapping_colors = {
     "Macrophage": "#2b2d2fff",
     "CR": "#000000ff",
 }
-
-
-def plot_test_scores(df_gene_score, bins="auto", alpha=0.7):
-    """
-    plot gene level test scores with each gene's sparsity
-    
-    Args:
-    df_gene_score: pandas dataframe returned by compare_spatial_geneexp(ad_ge, ad_sp, ad_sc); with "gene names" as the index and "score", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
-    """
-
-    if "is_training" in df_gene_score.keys():
-        df = df_gene_score[df_gene_score["is_training"] == False]
-
-    else:
-        df = df_gene_score
-    df.rename({"score": "test_score"}, axis="columns", inplace=True)
-
-    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
-    axs_f = axs.flatten()
-
-    sns.histplot(data=df, y="test_score", bins=10, ax=axs_f[0])
-
-    axs_f[1].set_title("score vs sparsity (single cells)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sc", ax=axs_f[1], alpha=alpha)
-
-    axs_f[2].set_title("score vs sparsity (spatial)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sp", ax=axs_f[2], alpha=alpha)
-
-    axs_f[3].set_title("score vs sparsity (sp - sc)")
-    sns.scatterplot(
-        data=df, y="test_score", x="sparsity_diff", ax=axs_f[3], alpha=alpha
-    )
-
-    plt.tight_layout()
-
-
-def plot_cv_test_scores(ad_sc, ad_sp, df_gene_score, bins="auto", alpha=0.7):
-    """
-    plot gene level test scores with each gene's sparsity
-    
-    Args:
-    ad_sc: anndata single cell data
-    ad_sp: anndata spatial data
-    df_gene_score: pandas dataframe with "gene names" as the index and "test_score" as the column
-    """
-
-    ad_sc, ad_sp = mu.pp_adatas(ad_sc, ad_sp)
-
-    ut.annotate_gene_sparsity(ad_sc)
-    ut.annotate_gene_sparsity(ad_sp)
-
-    df = pd.concat(
-        [
-            df_gene_score["test_score"],
-            ad_sc.var["sparsity"],
-            ad_sp.var["sparsity"],
-            (ad_sp.var["sparsity"] - ad_sc.var["sparsity"]),
-        ],
-        axis=1,
-    )
-    df.columns = ["test_score", "sparsity_sc", "sparsity_sp", "sparsity_diff"]
-
-    fig, axs = plt.subplots(1, 4, figsize=(12, 3), sharey=True)
-    axs_f = axs.flatten()
-
-    axs_f[0].set_title("Test scores for single genes")
-    sns.histplot(data=df, y="test_score", bins=10, ax=axs_f[0])
-
-    axs_f[1].set_title("score vs sparsity (single cells)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sc", ax=axs_f[1], alpha=alpha)
-
-    axs_f[2].set_title("score vs sparsity (spatial)")
-    sns.scatterplot(data=df, y="test_score", x="sparsity_sp", ax=axs_f[2], alpha=alpha)
-
-    axs_f[3].set_title("score vs sparsity (sp - sc)")
-    sns.scatterplot(
-        data=df, y="test_score", x="sparsity_diff", ax=axs_f[3], alpha=alpha
-    )
-
-    plt.tight_layout()
 
