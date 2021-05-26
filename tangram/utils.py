@@ -229,7 +229,7 @@ def count_cell_annotations(
 
 def segment(segmentation_df, cell_types, adata_sp):
     """
-    Prepare a AnnData structure for visualizaing deconvolution result.
+    Produce an AnnData structure for visualizaing deconvolution result.
 
     Args:
         segmentation_df (Pandas dataframe): Each row represents a segmentation object (single cell/nuclei), with columns - 'spot_idx' (voxel id), and 'y', 'x', 'centroids' to specify the position of the segmentation object.
@@ -464,7 +464,7 @@ def cross_val(
         adata_sc (AnnData): single cell data
         adata_sp (AnnData): gene spatial data
         cluster_label (str): the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping
-        mode (str): Optional. Tangram mapping mode. Currently supported: `cell`, `clusters`. Default is 'clusters'
+        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'.
         scale (bool): Optional. Whether weight input single cell by # of cells in cluster, only valid when cluster_label is not None. Default is True.
         lambda_g1 (float): Optional. Strength of Tangram loss function. Default is 1.
         lambda_d (float): Optional. Strength of density regularizer. Default is 0.
