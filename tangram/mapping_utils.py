@@ -189,6 +189,12 @@ def map_cells_to_space(
     if lambda_g1 == 0:
         raise ValueError("lambda_g1 cannot be 0.")
 
+    if density_prior is not None and lambda_d == 0:
+        raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
+
+    if lambda_d > 0 and density_prior is None:
+        raise ValueError("When lambda_d is set, please define the density_prior.")
+
     if mode not in ["clusters", "cells", "constrained"]:
         raise ValueError('Argument "mode" must be "cells", "clusters" or "constrained')
 

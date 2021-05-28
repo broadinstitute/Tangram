@@ -67,12 +67,13 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
 @pytest.mark.parametrize(
     "lambda_g1, lambda_g2, lambda_d, density_prior, scale, e",
     [
-        (1, 0, 0, None, True, np.float32(0.00223)),
-        (1, 0, 0, None, False, np.float32(0.004)),
-        (1, 1, 0, None, True, np.float32(0.00273)),
-        (1, 1, 0, None, False, np.float32(0.00358)),
-        (1, 1, 1, None, True, np.float32(0.00276)),
-        (1, 1, 1, None, False, np.float32(1e-05)),
+        (1, 0, 0, None, True, np.float32(0.0025464077)),
+        (1, 0, 0, None, False, np.float32(8.565502e-06)),
+        (1, 1, 0, None, True, np.float32(0.0027561917)),
+        (1, 1, 0, None, False, np.float32(5.6481e-06)),
+        (1, 1, 1, "uniform", True, np.float32(0.002759445)),
+        (1, 1, 1, "uniform", False, np.float32(5.6481e-06)),
+        (1, 0, 2, "uniform", True, np.float32(0.0020714775)),
         (1, 0, 1, "rna_count_based", True, np.float32(0.00204)),
         (1, 0, 1, "uniform", True, np.float32(0.00255)),
     ],
@@ -99,7 +100,7 @@ def test_map_cells_to_space(
     )
 
     # check if first element of output_admap.X is equal to expected value
-    assert round(ad_map.X[0, 0], 5) == approx(round(e, 5))
+    assert round(ad_map.X[0, 0], 5) == round(e, 5)
 
 
 # test mapping exception with assertion
@@ -156,26 +157,18 @@ def test_invalid_map_cells_to_space(
 
 
 @pytest.mark.parametrize(
-    "mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale, target_count",
+    "mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale",
     [
-        ("clusters", "subclass_label", 1, 0, 0, None, True, None),
-        ("clusters", "subclass_label", 1, 0, 0, None, False, None),
-        ("clusters", "subclass_label", 1, 1, 0, None, True, None),
-        ("clusters", "subclass_label", 1, 1, 0, None, False, None),
-        ("clusters", "subclass_label", 1, 0, 1, "uniform", True, None),
-        ("clusters", "subclass_label", 1, 0, 1, "rna_count_based", False, None),
+        ("clusters", "subclass_label", 1, 0, 0, None, True),
+        ("clusters", "subclass_label", 1, 0, 0, None, False),
+        ("clusters", "subclass_label", 1, 1, 0, None, True),
+        ("clusters", "subclass_label", 1, 1, 0, None, False),
+        ("clusters", "subclass_label", 1, 0, 1, "uniform", True),
+        ("clusters", "subclass_label", 1, 0, 1, "rna_count_based", False),
     ],
 )
 def test_train_score_match(
-    adatas,
-    mode,
-    cluster_label,
-    lambda_g1,
-    lambda_g2,
-    lambda_d,
-    density_prior,
-    scale,
-    target_count,
+    adatas, mode, cluster_label, lambda_g1, lambda_g2, lambda_d, density_prior, scale,
 ):
 
     # mapping with defined random_state
@@ -189,7 +182,6 @@ def test_train_score_match(
         lambda_g2=lambda_g2,
         lambda_d=lambda_d,
         density_prior=density_prior,
-        target_count=target_count,
         scale=scale,
         random_state=42,
         num_epochs=500,
