@@ -189,8 +189,13 @@ def map_cells_to_space(
     if lambda_g1 == 0:
         raise ValueError("lambda_g1 cannot be 0.")
 
-    if density_prior is not None and lambda_d == 0:
-        raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
+    if (type(density_prior) is str) and (
+        density_prior not in ["rna_count_based", "uniform", None]
+    ):
+        raise ValueError("Invalid input for density_prior.")
+
+    if density_prior is not None and (lambda_d == 0 or lambda_d is None):
+        lambda_d = 1
 
     if lambda_d > 0 and density_prior is None:
         raise ValueError("When lambda_d is set, please define the density_prior.")
