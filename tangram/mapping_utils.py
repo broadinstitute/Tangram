@@ -156,9 +156,8 @@ def map_cells_to_space(
     experiment=None,
 ):
     """
-    Map single cell data (`adata_sc`) on spatial data (`adata_sp`). If `adata_map`
-    is provided, resume from previous mapping.
-
+    Map single cell data (`adata_sc`) on spatial data (`adata_sp`).
+    
     Args:
         adata_sc (AnnData): single cell data
         adata_sp (AnnData): gene spatial data
@@ -190,8 +189,16 @@ def map_cells_to_space(
     if lambda_g1 == 0:
         raise ValueError("lambda_g1 cannot be 0.")
 
-    if density_prior is not None and lambda_d == 0:
-        raise ValueError("When density_prior is not None, lambda_d cannot be 0.")
+    if (type(density_prior) is str) and (
+        density_prior not in ["rna_count_based", "uniform", None]
+    ):
+        raise ValueError("Invalid input for density_prior.")
+
+    if density_prior is not None and (lambda_d == 0 or lambda_d is None):
+        lambda_d = 1
+
+    if lambda_d > 0 and density_prior is None:
+        raise ValueError("When lambda_d is set, please define the density_prior.")
 
     if mode not in ["clusters", "cells", "constrained"]:
         raise ValueError('Argument "mode" must be "cells", "clusters" or "constrained')
@@ -254,6 +261,10 @@ def map_cells_to_space(
         raise ValueError("Genes with all zero values detected. Run `pp_adatas()`.")
 
     # define density_prior if 'rna_count_based' is passed to the density_prior argument:
+    d_str = density_prior
+    if type(density_prior) is np.ndarray:
+        d_str = "customized"
+
     if density_prior == "rna_count_based":
         density_prior = adata_sp.obs["rna_count_based_density"]
 
@@ -261,13 +272,17 @@ def map_cells_to_space(
     elif density_prior == "uniform":
         density_prior = adata_sp.obs["uniform_density"]
 
-    if mode in ["cells", "constrained"]:
+    if mode == "cells":
         d = density_prior
 
-    if mode == "clusters":
-        d = density_prior
-        if d is None:
+    if mode in ["clusters", "constrained"]:
+        if density_prior is None:
             d = adata_sp.obs["uniform_density"]
+            d_str = "uniform"
+        else:
+            d = density_prior
+        if lambda_d is None or lambda_d == 0:
+            lambda_d = 1
 
     # Choose device
     device = torch.device(device)  # for gpu
@@ -286,8 +301,8 @@ def map_cells_to_space(
         }
 
         logging.info(
-            "Begin training with {} genes in {} mode...".format(
-                len(training_genes), mode
+            "Begin training with {} genes and {} density_prior in {} mode...".format(
+                len(training_genes), d_str, mode
             )
         )
         mapper = mo.Mapper(
@@ -316,8 +331,8 @@ def map_cells_to_space(
         }
 
         logging.info(
-            "Begin training with {} genes in {} mode...".format(
-                len(training_genes), mode
+            "Begin training with {} genes and {} density_prior in {} mode...".format(
+                len(training_genes), d_str, mode
             )
         )
 

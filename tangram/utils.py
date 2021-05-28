@@ -157,37 +157,99 @@ def project_cell_annotations(
     )
 
 
+def create_segment_cell_df(adata_sp):
+    """
+    Produces a Pandas dataframe where each row is a segmentation object, columns reveals its position information.
+
+    Args:
+        adata_sp (AnnData): spot-by-gene AnnData structure. Must contain obsm.['image_features']
+
+    Returns:
+        None.
+        Update spatial AnnData.uns['tangram_cell_segmentation'] with a dataframe: each row represents a segmentation object (single cell/nuclei). Columns are 'spot_idx' (voxel id), and 'y', 'x', 'centroids' to specify the position of the segmentation object.
+        Update spatial AnnData.obsm['trangram_spot_centroids'] with a sequence
+    """
+
+    if "image_features" not in adata_sp.obsm.keys():
+        raise ValueError(
+            "Missing parameter for tangram deconvolution. Run `sqidpy.im.calculate_image_features`."
+        )
+
+    centroids = adata_sp.obsm["image_features"][["segmentation_centroid"]].copy()
+    centroids["centroids_idx"] = [
+        np.array([f"{k}_{j}" for j in np.arange(i)], dtype="object")
+        for k, i in zip(
+            adata_sp.obs.index.values,
+            adata_sp.obsm["image_features"]["segmentation_label"],
+        )
+    ]
+    centroids_idx = centroids.explode("centroids_idx")
+    centroids_coords = centroids.explode("segmentation_centroid")
+    segmentation_df = pd.DataFrame(
+        centroids_coords["segmentation_centroid"].to_list(),
+        columns=["y", "x"],
+        index=centroids_coords.index,
+    )
+    segmentation_df["centroids"] = centroids_idx["centroids_idx"].values
+    segmentation_df.index.set_names("spot_idx", inplace=True)
+    segmentation_df.reset_index(
+        drop=False, inplace=True,
+    )
+
+    adata_sp.uns["tangram_cell_segmentation"] = segmentation_df
+    adata_sp.obsm["tangram_spot_centroids"] = centroids["centroids_idx"]
+    logging.info(
+        f"cell segmentation dataframe is saved in `uns` `tangram_cell_segmentation` of the spatial AnnData."
+    )
+    logging.info(
+        f"spot centroids is saved in `obsm` `tangram_spot_centroids` of the spatial AnnData."
+    )
+
+
 def count_cell_annotations(
-    adata_map,
-    adata_sc,
-    adata_sp,
-    xs,
-    ys,
-    centroids,
-    cell_count,
-    annotation="cell_type",
-    threshold=0.5,
+    adata_map, adata_sc, adata_sp, annotation="cell_type", threshold=0.5,
 ):
     """
-    Count cells in a voxel for each annotations
+    Count cells in a voxel for each annotation.
     
     Args:
         adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
         adata_sc (AnnData): cell-by-gene AnnData.
         adata_sp (AnnData): spatial AnnData data used to save the mapping result.
-        xs (sequence): x coordinates for each voxel
-        ys (sequence): y coordinates for each voxel
-        centroids (sequence): centroids id for each voxel.
-        cell_counts (sequence): cell counts for each voxel.
         annotation (str): Optional. Cell annotations matrix with shape (number_cells, number_annotations). Default is 'cell_type'.
         threshold (float): Optional. Valid for using with adata_map.obs['F_out'] from 'constrained' mode mapping. 
                            Cell's probability below this threshold will be dropped. Default is 0.5.
     
     Returns:
         None.
-        Update spatial Anndata by creating `obsm` `tangram_ct_count` field with a dataframe with spatial cell count for each annotation (number_spots, number_annotations).
+        Update spatial AnnData by creating `obsm` `tangram_ct_count` field which contains a dataframe that each row is a spot and each column has the cell count for each cell annotation (number_spots, number_annotations).
     
     """
+
+    if "spatial" not in adata_sp.obsm.keys():
+        raise ValueError(
+            "Missing spatial information in AnnDatas. Please make sure coordinates are saved with AnnData.obsm['spatial']"
+        )
+
+    if "image_features" not in adata_sp.obsm.keys():
+        raise ValueError(
+            "Missing parameter for tangram deconvolution. Run `sqidpy.im.calculate_image_features`."
+        )
+
+    if (
+        "tangram_cell_segmentation" not in adata_sp.uns.keys()
+        or "tangram_spot_centroids" not in adata_sp.obsm.keys()
+    ):
+        raise ValueError(
+            "Missing parameter for tangram deconvolution. Run `create_segment_cell_df`."
+        )
+
+    xs = adata_sp.obsm["spatial"][:, 1]
+    ys = adata_sp.obsm["spatial"][:, 0]
+    cell_count = adata_sp.obsm["image_features"]["segmentation_label"]
+
+    df_segmentation = adata_sp.uns["tangram_cell_segmentation"]
+    centroids = adata_sp.obsm["tangram_spot_centroids"]
 
     # create a dataframe
     df_vox_cells = df_vox_cells = pd.DataFrame(
@@ -227,27 +289,35 @@ def count_cell_annotations(
     )
 
 
-def segment(segmentation_df, cell_types, adata_sp):
+def deconvolve_cell_annotations(adata_sp, filter_cell_annotation=None):
     """
-    Produce an AnnData structure for visualizaing deconvolution result.
+    Assigns cell annotation to each segmented cell. Produces an AnnData structure that saves the assignment in its obs dataframe.
 
     Args:
-        segmentation_df (Pandas dataframe): Each row represents a segmentation object (single cell/nuclei), with columns - 'spot_idx' (voxel id), and 'y', 'x', 'centroids' to specify the position of the segmentation object.
-        df_vox_cells (Pandas dataframe): Columns correspond to cell types. Each row in the DataFrame corresponds to a voxel and
-                                         specifies the known number of cells in that voxel for each cell type (int).
-                                         The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
-        cell_types (sequence): Sequence of cell type names to be considered for deconvolution. Columns in 'df_vox_cells' not included in 'cell_types' are ignored for assignment.
-        adata_sp (AnnData): spatial AnnData structure.
+        adata_sp (AnnData): Spatial AnnData structure.
+        cell_types (sequence): Optional. Sequence of cell annotation names to be considered for deconvolution. Default is None. When no values passed, all cell annotation names in adata_sp.obsm["tangram_ct_pred"] will be used.
 
     Returns:
-        AnnData: for deconvolution visualization.
+        AnnData: Saves the cell annotation assignment result in its obs dataframe where each row representing a segmentation object, column 'x', 'y', 'centroids' contain its position and column 'cluster' is the assigned cell annotation.
     """
 
-    if "tangram_ct_count" not in adata_sp.obsm.keys():
+    if (
+        "tangram_ct_count" not in adata_sp.obsm.keys()
+        or "tangram_cell_segmentation" not in adata_sp.uns.keys()
+    ):
         raise ValueError("Missing tangram parameters. Run `count_cell_annotations`.")
 
+    segmentation_df = adata_sp.uns["tangram_cell_segmentation"]
+
+    if filter_cell_annotation is None:
+        filter_cell_annotation = pd.unique(
+            list(adata_sp.obsm["tangram_ct_pred"].columns)
+        )
+    else:
+        filter_cell_annotation = pd.unique(filter_cell_annotation)
+
     df_vox_cells = adata_sp.obsm["tangram_ct_count"]
-    cell_types_mapped = df_to_cell_types(df_vox_cells, cell_types)
+    cell_types_mapped = df_to_cell_types(df_vox_cells, filter_cell_annotation)
     df_list = []
     for k in cell_types_mapped.keys():
         df = pd.DataFrame({"centroids": np.array(cell_types_mapped[k], dtype="object")})
