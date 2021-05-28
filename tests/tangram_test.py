@@ -67,15 +67,15 @@ def test_pp_data(ad_sc_mock, ad_sp_mock, genes):
 @pytest.mark.parametrize(
     "lambda_g1, lambda_g2, lambda_d, density_prior, scale, e",
     [
-        (1, 0, 0, None, True, np.float32(0.0025464077)),
-        (1, 0, 0, None, False, np.float32(8.565502e-06)),
-        (1, 1, 0, None, True, np.float32(0.0027561917)),
-        (1, 1, 0, None, False, np.float32(5.6481e-06)),
-        (1, 1, 1, "uniform", True, np.float32(0.002759445)),
-        (1, 1, 1, "uniform", False, np.float32(5.6481e-06)),
-        (1, 0, 2, "uniform", True, np.float32(0.0020714775)),
-        (1, 0, 1, "rna_count_based", True, np.float32(0.00204)),
-        (1, 0, 1, "uniform", True, np.float32(0.00255)),
+        (1, 0, 0, None, True, np.float32(8.280743e-06)),
+        (1, 0, 0, None, False, np.float32(2.785552e-07)),
+        (1, 1, 0, None, True, np.float32(8.376801e-06)),
+        (1, 1, 0, None, False, np.float32(2.4095453e-07)),
+        (1, 1, 1, "uniform", True, np.float32(8.376801e-06)),
+        (1, 1, 1, "uniform", False, np.float32(2.4095453e-07)),
+        (1, 0, 2, "uniform", True, np.float32(1.3842443e-06)),
+        (1, 0, 1, "rna_count_based", True, np.float32(0.0023217443)),
+        (1, 0, 1, "uniform", True, np.float32(8.280743e-06)),
     ],
 )
 def test_map_cells_to_space(

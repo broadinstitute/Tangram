@@ -260,6 +260,8 @@ def map_cells_to_space(
     if not S.any(axis=0).all() or not G.any(axis=0).all():
         raise ValueError("Genes with all zero values detected. Run `pp_adatas()`.")
 
+    d_source = None
+
     # define density_prior if 'rna_count_based' is passed to the density_prior argument:
     d_str = density_prior
     if type(density_prior) is np.ndarray:
@@ -274,6 +276,9 @@ def map_cells_to_space(
 
     if mode == "cells":
         d = density_prior
+
+    if mode == "clusters":
+        d_source = np.array(adata_sc.obs["cluster_density"])
 
     if mode in ["clusters", "constrained"]:
         if density_prior is None:
@@ -298,6 +303,7 @@ def map_cells_to_space(
             "lambda_g1": lambda_g1,  # gene-voxel cos sim
             "lambda_g2": lambda_g2,  # voxel-gene cos sim
             "lambda_r": lambda_r,  # regularizer: penalize entropy
+            "d_source": d_source,
         }
 
         logging.info(

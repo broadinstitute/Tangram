@@ -295,7 +295,7 @@ def deconvolve_cell_annotations(adata_sp, filter_cell_annotation=None):
 
     Args:
         adata_sp (AnnData): Spatial AnnData structure.
-        cell_types (sequence): Optional. Sequence of cell annotation names to be considered for deconvolution. Default is None. When no values passed, all cell annotation names in adata_sp.obsm["tangram_ct_pred"] will be used.
+        filter_cell_annotation (sequence): Optional. Sequence of cell annotation names to be considered for deconvolution. Default is None. When no values passed, all cell annotation names in adata_sp.obsm["tangram_ct_pred"] will be used.
 
     Returns:
         AnnData: Saves the cell annotation assignment result in its obs dataframe where each row representing a segmentation object, column 'x', 'y', 'centroids' contain its position and column 'cluster' is the assigned cell annotation.
