@@ -35,10 +35,10 @@ Then load your spatial data and your single cell data (which should be in [AnnDa
 ```
     ad_sp = sc.read_h5ad(path)
     ad_sc = sc.read_h5ad(path)
-    ad_sc, ad_sp = tg.pp_adatas(ad_sc, ad_sp, genes=None)
+    tg.pp_adatas(ad_sc, ad_sp, genes=None)
 ```
 
-The function `pp_adatas` simply ensures that each column of the two datasets points to the same gene (and reorder the matrices if it doesn't). Also, it subsets the datasets to a set of training genes passed by `genes`. If `genes=None`, Tangram maps using all genes shared by the two datasets. Once the datasets are pre-processed we can map:
+The function `pp_adatas` finds the common genes between adata_sc, adata_sp, and saves them in two `adatas.uns` for mapping and analysis later. Also, it subsets the intersected genes to a set of training genes passed by `genes`. If `genes=None`, Tangram maps using all genes shared by the two datasets. Once the datasets are pre-processed we can map:
 
 ```
     ad_map = tg.map_cells_to_space(ad_sc, ad_sp)
