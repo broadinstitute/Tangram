@@ -163,7 +163,7 @@ def map_cells_to_space(
         adata_sp (AnnData): gene spatial data
         cv_train_genes (list): Optional. Training gene list. Default is None.
         cluster_label (str): Optional. the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping.
-        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'clusters'.
+        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'cell'.
         device (string or torch.device): Optional. Default is 'cpu'.
         learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
         num_epochs (int): Optional. Number of epochs. Default is 1000.
