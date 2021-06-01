@@ -96,7 +96,7 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """
-    Convert an AnnData to a new AnnData with cluster expressions. Clusters are based on `label` in `adata.obs`.  The returned AnnData has an observation for each cluster, with the cluster-level expression equals to the average expression for that cluster.
+    Convert an AnnData to a new AnnData with cluster expressions. Clusters are based on `cluster_label` in `adata.obs`.  The returned AnnData has an observation for each cluster, with the cluster-level expression equals to the average expression for that cluster.
     All annotations in `adata.obs` except `label` are discarded in the returned AnnData.
     
     Args:
