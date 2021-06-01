@@ -101,7 +101,7 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
     
     Args:
         adata (AnnData): single cell data
-        cluster_label (String): level for aggregating
+        cluster_label (String): field in `adata.obs` used for aggregating values
         scale (bool): Optional. Whether weight input single cell by # of cells in cluster. Default is True.
         add_density (bool): Optional. If True, the normalized number of cells in each cluster is added to the returned AnnData as obs.cluster_density. Default is True.
 
