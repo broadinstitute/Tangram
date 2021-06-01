@@ -162,7 +162,7 @@ def map_cells_to_space(
         adata_sc (AnnData): single cell data
         adata_sp (AnnData): gene spatial data
         cv_train_genes (list): Optional. Training gene list. Default is None.
-        cluster_label (str): Optional. the level that the single cell data will be aggregate at, this is only valid for clusters mode mapping.
+        cluster_label (str): Optional. Field in `adata_sc.obs` used for aggregating single cell data. Only valid for `mode=clusters`.
         mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'cell'.
         device (string or torch.device): Optional. Default is 'cpu'.
         learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
