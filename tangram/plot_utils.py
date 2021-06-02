@@ -225,6 +225,9 @@ def plot_cell_annotation(
     )
 
     axs_f = axs.flatten()
+    if invert_y is True:
+        axs_f[0].invert_yaxis()
+
     [ax.axis("off") for ax in axs_f]
 
     if len(df_annotation.columns) > nrows * ncols:
@@ -244,12 +247,8 @@ def plot_cell_annotation(
             vmin, vmax = q_value(preds, perc=0)
 
         axs_f[index].scatter(x=xs, y=ys, c=preds, s=s, cmap=cmap, vmin=vmin, vmax=vmax)
-        #         axs_f[index].axis('off')
-        axs_f[index].set_aspect(1)
         axs_f[index].set_title(ann)
-
-        if invert_y is True:
-            axs_f[index].invert_yaxis()
+        axs_f[index].set_aspect(1)
 
     if subtitle_add is True:
         fig.suptitle(annotation)
@@ -332,6 +331,7 @@ def plot_genes(
         axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
         axs[ix, 0].set_title(gene + " (measured)")
         axs[ix, 0].axis("off")
+        axs[ix, 0].set_aspect(1)
 
         xs, ys, vs = ordered_predictions(
             adata_predicted.obs[x],
@@ -349,6 +349,7 @@ def plot_genes(
         axs[ix, 1].scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
         axs[ix, 1].set_title(gene + " (predicted)")
         axs[ix, 1].axis("off")
+        axs[ix, 1].set_aspect(1)
 
         if invert_y is True:
             axs[ix, 0].invert_yaxis()
