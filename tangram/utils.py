@@ -10,12 +10,18 @@ import scanpy as sc
 from tqdm import tqdm
 from sklearn.model_selection import LeaveOneOut
 from sklearn.model_selection import KFold
-from comet_ml import Experiment
-
-from . import mapping_utils as mu
 
 import logging
 import warnings
+try:
+    # conditional import
+    from comet_ml import Experiment
+except ImportError:
+    logging.warning("Please install `comet_ml` for advanced experiment logging.")
+
+from . import mapping_utils as mu
+
+
 
 from sklearn.metrics import auc
 

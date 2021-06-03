@@ -11,7 +11,11 @@ import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
 
-from comet_ml import Experiment
+try:
+    # conditional import
+    from comet_ml import Experiment
+except ImportError:
+    logging.warning("Please install `comet_ml` for advanced experiment logging.")
 
 
 class Mapper:
