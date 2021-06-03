@@ -153,7 +153,6 @@ def map_cells_to_space(
     random_state=None,
     verbose=True,
     density_prior=None,
-    experiment=None,
 ):
     """
     Map single cell data (`adata_sc`) on spatial data (`adata_sp`).
@@ -178,7 +177,6 @@ def map_cells_to_space(
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is True.
         density_prior (ndarray or str): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
-        experiment (str): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
 
     Returns:
         a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
@@ -318,10 +316,7 @@ def map_cells_to_space(
         # TODO `train` should return the loss function
 
         mapping_matrix, training_history = mapper.train(
-            learning_rate=learning_rate,
-            num_epochs=num_epochs,
-            print_each=print_each,
-            experiment=experiment,
+            learning_rate=learning_rate, num_epochs=num_epochs, print_each=print_each,
         )
 
     # constrained mode
@@ -347,10 +342,7 @@ def map_cells_to_space(
         )
 
         mapping_matrix, F_out, training_history = mapper.train(
-            learning_rate=learning_rate,
-            num_epochs=num_epochs,
-            print_each=print_each,
-            experiment=experiment,
+            learning_rate=learning_rate, num_epochs=num_epochs, print_each=print_each,
         )
 
     logging.info("Saving results..")

@@ -33,6 +33,5 @@ setuptools.setup(
         "scikit-learn",
         "tqdm",
     ],
-    extras_require={"experiment_logging": ["comet_ml"]},
 )
 

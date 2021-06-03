@@ -11,8 +11,6 @@ import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
 
-from comet_ml import Experiment
-
 
 class Mapper:
     """
@@ -151,7 +149,7 @@ class Mapper:
 
         return total_loss, main_loss, vg_reg, kl_reg, entropy_reg
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100):
         """
         Run the optimizer and returns the mapping outcome.
 
@@ -159,7 +157,6 @@ class Mapper:
             num_epochs (int): Number of epochs.
             learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
             print_each (int): Optional. Prints the loss each print_each epochs. If None, the loss is never printed. Default is 100.
-            experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
 
         Returns:
             output (ndarray): The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
@@ -185,10 +182,6 @@ class Mapper:
 
             for i in range(len(keys)):
                 training_history[keys[i]].append(str(run_loss[i]))
-
-            if experiment:
-                for i in range(1, len(keys)):
-                    experiment.log_metric(keys[i], run_loss[i])
 
             optimizer.zero_grad()
             loss.backward()
@@ -377,7 +370,7 @@ class MapperConstrained:
             lambda_f_reg,
         )
 
-    def train(self, num_epochs, learning_rate=0.1, print_each=100, experiment=None):
+    def train(self, num_epochs, learning_rate=0.1, print_each=100):
         """
         Run the optimizer and returns the mapping outcome.
 
@@ -385,7 +378,6 @@ class MapperConstrained:
             num_epochs (int): Number of epochs.
             learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
             print_each (int): Optional. Prints the loss each print_each epochs. If None, the loss is never printed. Default is 100.
-            experiment (string): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
 
         Returns:
             A tuple (output, F_out, training_history), with:
@@ -420,10 +412,6 @@ class MapperConstrained:
 
             for i in range(len(keys)):
                 training_history[keys[i]].append(str(run_loss[i]))
-
-            if experiment:
-                for i in range(1, len(keys)):
-                    experiment.log_metric(keys[i], run_loss[i])
 
             optimizer.zero_grad()
             loss.backward()

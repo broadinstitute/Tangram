@@ -10,7 +10,6 @@ import scanpy as sc
 from tqdm import tqdm
 from sklearn.model_selection import LeaveOneOut
 from sklearn.model_selection import KFold
-from comet_ml import Experiment
 
 from . import mapping_utils as mu
 
@@ -523,7 +522,6 @@ def cross_val(
     cv_mode="loo",
     return_gene_pred=False,
     density_prior=None,
-    experiment=None,
     random_state=None,
     verbose=False,
 ):
@@ -549,7 +547,6 @@ def cross_val(
         cv_mode (str): Optional. cross validation mode, 'loo' ('leave-one-out') and '10fold' supported. Default is 'loo'.
         return_gene_pred (bool): Optional. if return prediction and true spatial expression data for test gene, only applicable when 'loo' mode is on, default is False.
         density_prior (ndarray or str): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
-        experiment (str): Optional. experiment object in comet-ml for logging training in comet-ml. Defulat is None.
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is False.
     
@@ -639,10 +636,6 @@ def cross_val(
             )
             print(msg)
 
-        if experiment:
-            experiment.log_metric("test_score_{}".format(curr_cv_set), test_score)
-            experiment.log_metric("train_score_{}".format(curr_cv_set), train_score)
-
         curr_cv_set += 1
 
     # use nanmean to ignore nan in score list
@@ -656,10 +649,6 @@ def cross_val(
 
     print("cv avg test score {:.3f}".format(avg_test_score))
     print("cv avg train score {:.3f}".format(avg_train_score))
-
-    if experiment:
-        experiment.log_metric("avg test score", avg_test_score)
-        experiment.log_metric("avg train score", avg_train_score)
 
     if cv_mode == "loo" and return_gene_pred:
 
