@@ -723,13 +723,16 @@ def eval_metric(df_all_genes, test_genes=None):
     roots = pol.r
     root = None
     for i in range(len(roots)):
-        if np.isreal(roots[i]):
+        if np.isreal(roots[i]) and roots[i] <= 1 and roots[i] >= 0:
             root = roots[i]
             break
 
     if root is not None:
         pol_xs = np.append(pol_xs, root)
         pol_ys = np.append(pol_ys, 0)
+
+    np.append(pol_xs, 1)
+    np.append(pol_ys, pol(1))
 
     # remove point that are out of [0,1]
     del_idx = []
