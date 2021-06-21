@@ -3,6 +3,8 @@ Allen-Visium_Allen1_cell_centroids.pkl
 Allen-Visium_Allen1_cell_count.h5ad
 visp_sn_tpm_small_0430.h5ad
 __pycache__
+MOp_markers.csv
+Allen1_cell_centroids.pkl
 
 # ignore nb checkpoints
 .ipynb_checkpoints
@@ -40,3 +42,4 @@ share/python-wheels/
 
 # ignore coverage report
 *.coverage
+*.coverage.*

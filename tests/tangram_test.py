@@ -17,14 +17,14 @@ from pytest import approx
 
 @pytest.fixture
 def adatas():
-    ad_sc = sc.read_h5ad("test_data/test_ad_sc.h5ad")
-    ad_sp = sc.read_h5ad("test_data/test_ad_sp.h5ad")
+    ad_sc = sc.read_h5ad("data/test_ad_sc.h5ad")
+    ad_sp = sc.read_h5ad("data/test_ad_sp.h5ad")
     return (ad_sc, ad_sp)
 
 
 @pytest.fixture
 def df_all_genes():
-    df_all_genes = pd.read_csv("test_data/test_df.csv", index_col=0)
+    df_all_genes = pd.read_csv("data/test_df.csv", index_col=0)
     return df_all_genes
 
 
