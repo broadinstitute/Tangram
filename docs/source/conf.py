@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE.parent.parent))  # this way, we don't have to instal
 sys.path.insert(0, os.path.abspath("_ext"))
 
 
-import tangram
+#import tangram
 # -- Project information -----------------------------------------------------
 
 project = 'Tangram'
