@@ -2,7 +2,7 @@ sphinx
 nbsphinx
 nbsphinx-link
 sphinx-rtd-theme
-pytorch
+torch
 pandas==1.1.0
 numpy==1.19.1
 scipy==1.5.2
