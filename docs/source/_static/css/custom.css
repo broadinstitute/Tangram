@@ -1,0 +1,39 @@
+.small {
+    font-size: 55%;
+}
+
+div.version {
+    color: #4d79ff!important;
+}
+
+/*side-bar background color*/
+.wy-nav-side {
+    background: #4d79ff!important;
+}
+
+.wy-side-nav-search {
+    background-color: #4d79ff!important;
+}
+
+.wy-side-nav-search input[type="text"] {
+    border-radius: 6px!important;
+}
+
+.wy-nav-content{
+    max-width: 950px;
+}
+
+/* color for hovering over the topics */
+.wy-menu-vertical a:hover {
+    background-color: #99ffff;
+}
+
+/* color for hovering over the selected topic */
+.wy-menu-vertical li.current a:hover {
+    background: #ccffff;
+}
+
+.wy-menu > .caption > span.caption-text {
+  color: #ffffff;
+}
+
