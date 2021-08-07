@@ -6,7 +6,6 @@ pytorch
 pandas==1.1.0
 numpy==1.19.1
 scipy==1.5.2
-matplotlib-base
 seaborn==0.11.1
 scanpy>=1.6.0
 scikit-learn
