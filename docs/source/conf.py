@@ -21,12 +21,12 @@ sys.path.insert(0, str(HERE.parent.parent))  # this way, we don't have to instal
 sys.path.insert(0, os.path.abspath("_ext"))
 
 
-#import tangram
+import tangram
 # -- Project information -----------------------------------------------------
 
 project = 'Tangram'
-copyright = '2021, Team Tommaso' #GET FROM TANGRAM
-author = 'Team Tommaso' #GET FROM TANGRAM
+copyright = '2021, Department of AI/ML(Research Biology), Genentech' #no copyright
+author = 'Department of AI/ML(Research Biology), Genentech' #GET FROM TANGRAM
 
 # The full version, including alpha/beta/rc tags
 release = '0.4.0'  #GET FROM TANGRAM
@@ -37,7 +37,7 @@ release = '0.4.0'  #GET FROM TANGRAM
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'nbsphinx', 'sphinx.ext.autosummary','nbsphinx_link']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'nbsphinx', 'sphinx.ext.autosummary','nbsphinx_link', 'sphinx_gallery.load_style']
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.

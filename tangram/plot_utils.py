@@ -21,7 +21,7 @@ from matplotlib.gridspec import GridSpec
 
 def q_value(data, perc):
     """
-    This function produces min and max values according to percentile for colormap in plot functions
+    Computes min and max values according to percentile for colormap in plot functions
 
     Args:
         data (numpy array): input
@@ -38,7 +38,7 @@ def q_value(data, perc):
 
 def plot_training_scores(adata_map, bins=10, alpha=0.7):
     """
-    This function plots the 4-panel training diagnosis plot
+    Plots the 4-panel training diagnosis plot
 
     Args:
         adata_map (AnnData):
@@ -531,7 +531,7 @@ def quick_plot_gene(
 
 def plot_annotation_entropy(adata_map, annotation="cell_type"):
     """
-    This function plots entropy box plot by each annotation.
+    Utility function to plot entropy box plot by each annotation.
 
     Args:
         adata_map (AnnData): cell-by-voxel tangram mapping result.
@@ -550,7 +550,7 @@ def plot_annotation_entropy(adata_map, annotation="cell_type"):
 
 def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     """
-    This function plots gene level test scores with each gene's sparsity for mapping result.
+    Plots gene level test scores with each gene's sparsity for mapping result.
     
     Args:
         df_gene_score (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp, adata_sc); 

@@ -10,3 +10,4 @@ seaborn==0.11.1
 scanpy>=1.6.0
 scikit-learn
 tqdm
+sphinx-gallery==0.9.0

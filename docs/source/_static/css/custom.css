@@ -2,6 +2,12 @@
     font-size: 55%;
 }
 
+/*size of the page*/
+
+.wy-nav-content {
+    max-width: 1500px !important;
+}
+
 div.version {
     color: #4d79ff!important;
 }
@@ -11,8 +17,13 @@ div.version {
     background: #4d79ff!important;
 }
 
+/*logo area*/
 .wy-side-nav-search {
-    background-color: #4d79ff!important;
+    background-color: #ffffff!important;
+}
+
+.wy-side-nav-search {
+    border: 4px solid #4d79ff;
 }
 
 .wy-side-nav-search input[type="text"] {
@@ -23,14 +34,20 @@ div.version {
     max-width: 950px;
 }
 
+
 /* color for hovering over the topics */
 .wy-menu-vertical a:hover {
-    background-color: #99ffff;
+    background-color: #00e6e6
+}
+
+/*color for text when hovering*/
+.wy-menu-vertical a:hover {
+    color: #0000ff
 }
 
 /* color for hovering over the selected topic */
 .wy-menu-vertical li.current a:hover {
-    background: #ccffff;
+    background: #00e6e6;
 }
 
 .wy-menu > .caption > span.caption-text {
