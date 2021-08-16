@@ -1,30 +1,22 @@
 ﻿tangram.mapping\_optimizer
 ==========================
 
+.. rubric:: Description
+
 .. automodule:: tangram.mapping_optimizer
 
-   
-   
-   
+.. currentmodule:: tangram.mapping_optimizer
 
-   
-   
-   
 
-   
-   
-   .. rubric:: Classes
+.. rubric:: Classes
 
-   .. autosummary::
-   
-      Mapper
-      MapperConstrained
-   
-   
-
-   
-   
-   
+.. autosummary::
+    :toctree: .
+    
+    Mapper
+    
+    MapperConstrained
+    
 
 
 
