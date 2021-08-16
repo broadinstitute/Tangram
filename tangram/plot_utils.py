@@ -600,7 +600,30 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     )
     plt.tight_layout()
 
+def plot_auc(df_all_genes, test_genes=None):
+    
+    metric_dict, ((pol_xs, pol_ys), (xs, ys)) = ut.eval_metric(df_all_genes, test_genes)
+    
+    fig = plt.figure()
+    plt.figure(figsize=(5, 5))
 
+    plt.plot(pol_xs, pol_ys, c='r')
+    sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
+        
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.gca().set_aspect(1)
+    plt.xlabel('score')
+    plt.ylabel('spatial sparsity')
+    plt.tick_params(axis='both', labelsize=8)
+    plt.title('Test gene AUC score and curve')
+    
+    textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
+    # place a text box in upper left in axes coords
+    plt.text(0.03, 0.1, textstr, fontsize=11,
+    verticalalignment='top', bbox=props)
+    
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
     "L6 CT": (0.19215686274509805, 0.5098039215686274, 0.7411764705882353),
