@@ -718,6 +718,9 @@ def eval_metric(df_all_genes, test_genes=None):
     pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
     pol = np.poly1d(pol_cs)  # build polynomial as function
     pol_ys = [pol(x) for x in pol_xs]  # compute polys
+    
+    if pol_ys[0] > 1:
+        pol_ys[0] = 1
 
     # if real root when y = 0, add point (x, 0):
     roots = pol.r
@@ -729,8 +732,8 @@ def eval_metric(df_all_genes, test_genes=None):
 
     if root is not None:
         pol_xs = np.append(pol_xs, root)
-        pol_ys = np.append(pol_ys, 0)
-
+        pol_ys = np.append(pol_ys, 0)       
+        
     np.append(pol_xs, 1)
     np.append(pol_ys, pol(1))
 
