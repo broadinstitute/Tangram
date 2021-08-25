@@ -152,7 +152,7 @@ def map_cells_to_space(
     target_count=None,
     random_state=None,
     verbose=True,
-    density_prior=None,
+    density_prior='rna_count_based',
 ):
     """
     Map single cell data (`adata_sc`) on spatial data (`adata_sp`).
@@ -176,7 +176,7 @@ def map_cells_to_space(
         target_count (int): Optional. The number of cells to be filtered. Default is None.
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is True.
-        density_prior (ndarray or str): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If not provided, the density term is ignored. 
+        density_prior (str, ndarray or None): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If None, the density term is ignored. Default value is 'rna_count_based'.
 
     Returns:
         a cell-by-spot AnnData containing the probability of mapping cell i on spot j.
