@@ -172,7 +172,7 @@ def construct_obs_plot(df_plot, adata, perc=0, suffix=None):
     adata.obs = pd.concat([adata.obs, df_plot], axis=1)
 
 
-def plot_cell_annotation(adata_sp, annotation_list, perc=0):
+def plot_cell_annotation_sc(adata_sp, annotation_list, perc=0):
 
     # remove previous df_plot in obs
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
@@ -189,107 +189,107 @@ def plot_cell_annotation(adata_sp, annotation_list, perc=0):
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
 
 
-# def plot_cell_annotation(
-#     adata_map,
-#     adata_sp,
-#     annotation="cell_type",
-#     x="x",
-#     y="y",
-#     nrows=1,
-#     ncols=1,
-#     s=5,
-#     cmap="viridis",
-#     subtitle_add=False,
-#     robust=False,
-#     perc=0,
-#     invert_y=True,
-# ):
-#     """
-#     Transfer an annotation for a single cell dataset onto space, and visualize
-#     corresponding spatial probability maps.
+def plot_cell_annotation(
+    adata_map,
+    adata_sp,
+    annotation="cell_type",
+    x="x",
+    y="y",
+    nrows=1,
+    ncols=1,
+    s=5,
+    cmap="viridis",
+    subtitle_add=False,
+    robust=False,
+    perc=0,
+    invert_y=True,
+):
+    """
+    Transfer an annotation for a single cell dataset onto space, and visualize
+    corresponding spatial probability maps.
 
-#     Args:
-#         adata_map (AnnData): cell-by-spot AnnData containing mapping result
-#         adata_sp (AnnData): spot-by-gene spatial AnnData
-#         annotation (str): Optional. Must be a column in `adata_map.obs`. Default is 'cell_type'.
-#         x (str): Optional. Column name for spots x-coordinates (must be in `adata_map.var`). Default is 'x'.
-#         y (str): Optional. Column name for spots y-coordinates (must be in `adata_map.var`). Default is 'y'.
-#         nrows (int): Optional. Number of rows of the subplot grid. Default is 1.
-#         ncols (int): Optional. Number of columns of the subplot grid. Default is 1.
-#         s (float): Optional. Marker size. Default is 5.
-#         cmap (str): Optional. Name of colormap. Default is 'viridis'.
-#         subtitle_add (bool): Optional. If add annotation name as the subtitle. Default is False.
-#         robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
-#         perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
-#         invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
+    Args:
+        adata_map (AnnData): cell-by-spot AnnData containing mapping result
+        adata_sp (AnnData): spot-by-gene spatial AnnData
+        annotation (str): Optional. Must be a column in `adata_map.obs`. Default is 'cell_type'.
+        x (str): Optional. Column name for spots x-coordinates (must be in `adata_map.var`). Default is 'x'.
+        y (str): Optional. Column name for spots y-coordinates (must be in `adata_map.var`). Default is 'y'.
+        nrows (int): Optional. Number of rows of the subplot grid. Default is 1.
+        ncols (int): Optional. Number of columns of the subplot grid. Default is 1.
+        s (float): Optional. Marker size. Default is 5.
+        cmap (str): Optional. Name of colormap. Default is 'viridis'.
+        subtitle_add (bool): Optional. If add annotation name as the subtitle. Default is False.
+        robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
+        perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
+        invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
 
-#     Returns:
-#         None
-#     """
+    Returns:
+        None
+    """
 
-#     # TODO ADD CHECKS for x and y
+    # TODO ADD CHECKS for x and y
 
-#     if not robust and perc != 0:
-#         raise ValueError("Arg perc is zero when robust is False.")
+    if not robust and perc != 0:
+        raise ValueError("Arg perc is zero when robust is False.")
 
-#     if robust and perc == 0:
-#         raise ValueError("Arg perc cannot be zero when robust is True.")
+    if robust and perc == 0:
+        raise ValueError("Arg perc cannot be zero when robust is True.")
 
-#     ut.project_cell_annotations(adata_map, adata_sp, annotation=annotation)
+    ut.project_cell_annotations(adata_map, adata_sp, annotation=annotation)
 
-#     df_annotation = adata_sp.obsm["tangram_ct_pred"]
+    df_annotation = adata_sp.obsm["tangram_ct_pred"]
 
-#     #### Colorbar:
-#     fig, ax = plt.subplots(figsize=(4, 0.4))
-#     fig.subplots_adjust(top=0.5)
+    #### Colorbar:
+    fig, ax = plt.subplots(figsize=(4, 0.4))
+    fig.subplots_adjust(top=0.5)
 
-#     cmap = plt.get_cmap(cmap)
-#     norm = mpl.colors.Normalize(vmin=0, vmax=1,)
+    cmap = plt.get_cmap(cmap)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1,)
 
-#     cb1 = mpl.colorbar.ColorbarBase(
-#         ax, cmap=cmap, norm=norm, orientation="horizontal", label="Probability"
-#     )
-#     #### Colorbar
+    cb1 = mpl.colorbar.ColorbarBase(
+        ax, cmap=cmap, norm=norm, orientation="horizontal", label="Probability"
+    )
+    #### Colorbar
 
-#     if nrows is None or ncols is None:
-#         ncols = 1
-#         nrows = len(df_annotation.columns)
+    if nrows is None or ncols is None:
+        ncols = 1
+        nrows = len(df_annotation.columns)
 
-#     fig, axs = plt.subplots(
-#         nrows, ncols, figsize=(ncols * 3, nrows * 3), sharex=True, sharey=True
-#     )
+    fig, axs = plt.subplots(
+        nrows, ncols, figsize=(ncols * 3, nrows * 3), sharex=True, sharey=True
+    )
 
-#     axs_f = axs.flatten()
-#     if invert_y is True:
-#         axs_f[0].invert_yaxis()
+    axs_f = axs.flatten()
+    if invert_y is True:
+        axs_f[0].invert_yaxis()
 
-#     [ax.axis("off") for ax in axs_f]
+    [ax.axis("off") for ax in axs_f]
 
-#     if len(df_annotation.columns) > nrows * ncols:
-#         logging.warning(
-#             "Number of panels smaller than annotations. Increase `nrows`/`ncols`."
-#         )
+    if len(df_annotation.columns) > nrows * ncols:
+        logging.warning(
+            "Number of panels smaller than annotations. Increase `nrows`/`ncols`."
+        )
 
-#     iterator = zip(df_annotation.columns, range(nrows * ncols))
-#     for ann, index in iterator:
-#         xs, ys, preds = ordered_predictions(
-#             adata_map.var[x], adata_map.var[y], df_annotation[ann]
-#         )
+    iterator = zip(df_annotation.columns, range(nrows * ncols))
+    for ann, index in iterator:
+        xs, ys, preds = ordered_predictions(
+            adata_map.var[x], adata_map.var[y], df_annotation[ann]
+        )
 
-#         if robust:
-#             vmin, vmax = q_value(preds, perc=perc)
-#         else:
-#             vmin, vmax = q_value(preds, perc=0)
+        if robust:
+            vmin, vmax = q_value(preds, perc=perc)
+        else:
+            vmin, vmax = q_value(preds, perc=0)
 
-#         axs_f[index].scatter(x=xs, y=ys, c=preds, s=s, cmap=cmap, vmin=vmin, vmax=vmax)
-#         axs_f[index].set_title(ann)
-#         axs_f[index].set_aspect(1)
+        axs_f[index].scatter(x=xs, y=ys, c=preds, s=s, cmap=cmap, vmin=vmin, vmax=vmax)
+        axs_f[index].set_title(ann)
+        axs_f[index].set_aspect(1)
 
-#     if subtitle_add is True:
-#         fig.suptitle(annotation)
+    if subtitle_add is True:
+        fig.suptitle(annotation)
 
 
-def plot_genes(genes, adata_measured, adata_predicted, cmap="inferno", perc=0):
+def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0):
 
     # remove df_plot in obs
     adata_measured.obs.drop(
@@ -389,106 +389,106 @@ def plot_genes(genes, adata_measured, adata_predicted, cmap="inferno", perc=0):
     )
 
 
-# def plot_genes(
-#     genes,
-#     adata_measured,
-#     adata_predicted,
-#     x="x",
-#     y="y",
-#     s=5,
-#     log=False,
-#     cmap="inferno",
-#     robust=False,
-#     perc=0,
-#     invert_y=True,
-# ):
-#     """
-#     Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
+def plot_genes(
+    genes,
+    adata_measured,
+    adata_predicted,
+    x="x",
+    y="y",
+    s=5,
+    log=False,
+    cmap="inferno",
+    robust=False,
+    perc=0,
+    invert_y=True,
+):
+    """
+    Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
 
-#     Args:
-#         genes (list): list of gene names (str).
-#         adata_measured (AnnData): ground truth gene spatial AnnData
-#         adata_predicted (AnnData): projected gene spatial AnnData, can also be adata_ge_cv AnnData returned by cross_validation under 'loo' mode
-#         x (str): Optional. Column name for spots x-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'x'.
-#         y (str): Optional. Column name for spots y-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'y'.
-#         s (float): Optional. Marker size. Default is 5.
-#         log: Optional. Whether to apply the log before plotting. Default is False.
-#         cmap (str): Optional. Name of colormap. Default is 'inferno'.
-#         robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
-#         perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
-#         invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
+    Args:
+        genes (list): list of gene names (str).
+        adata_measured (AnnData): ground truth gene spatial AnnData
+        adata_predicted (AnnData): projected gene spatial AnnData, can also be adata_ge_cv AnnData returned by cross_validation under 'loo' mode
+        x (str): Optional. Column name for spots x-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'x'.
+        y (str): Optional. Column name for spots y-coordinates (must be in `adata_measured.var` and `adata_predicted.var`). Default is 'y'.
+        s (float): Optional. Marker size. Default is 5.
+        log: Optional. Whether to apply the log before plotting. Default is False.
+        cmap (str): Optional. Name of colormap. Default is 'inferno'.
+        robust (bool): Optional. If True, the colormap range is computed with given percentiles instead of extreme values.
+        perc (float): Optional. percentile used to calculate colormap range, only used when robust is True. Default is zero.
+        invert_y (bool): Optional. If invert the y axis for the plot. Default is True.
 
-#     Returns:
-#         None
-#     """
-#     # TODO: not very elegant and slow as hell
+    Returns:
+        None
+    """
+    # TODO: not very elegant and slow as hell
 
-#     if not robust and perc != 0:
-#         raise ValueError("Arg perc is zero when robust is False.")
+    if not robust and perc != 0:
+        raise ValueError("Arg perc is zero when robust is False.")
 
-#     if robust and perc == 0:
-#         raise ValueError("Arg perc cannot be zero when robust is True.")
+    if robust and perc == 0:
+        raise ValueError("Arg perc cannot be zero when robust is True.")
 
-#     if isinstance(adata_measured.X, csc_matrix) or isinstance(
-#         adata_measured.X, csr_matrix
-#     ):
-#         adata_measured.X = adata_measured.X.toarray()
+    if isinstance(adata_measured.X, csc_matrix) or isinstance(
+        adata_measured.X, csr_matrix
+    ):
+        adata_measured.X = adata_measured.X.toarray()
 
-#     adata_measured.var.index = [g.lower() for g in adata_measured.var.index]
-#     adata_predicted.var.index = [g.lower() for g in adata_predicted.var.index]
+    adata_measured.var.index = [g.lower() for g in adata_measured.var.index]
+    adata_predicted.var.index = [g.lower() for g in adata_predicted.var.index]
 
-#     #### Colorbar:
-#     fig, ax = plt.subplots(figsize=(4, 0.4))
-#     fig.subplots_adjust(top=0.5)
+    #### Colorbar:
+    fig, ax = plt.subplots(figsize=(4, 0.4))
+    fig.subplots_adjust(top=0.5)
 
-#     cmap = plt.get_cmap(cmap)
-#     norm = mpl.colors.Normalize(vmin=0, vmax=1,)
+    cmap = plt.get_cmap(cmap)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1,)
 
-#     cb1 = mpl.colorbar.ColorbarBase(
-#         ax, cmap=cmap, norm=norm, orientation="horizontal", label="Expression Level"
-#     )
-#     #### Colorbar
+    cb1 = mpl.colorbar.ColorbarBase(
+        ax, cmap=cmap, norm=norm, orientation="horizontal", label="Expression Level"
+    )
+    #### Colorbar
 
-#     fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes) * 3))
+    fig, axs = plt.subplots(nrows=len(genes), ncols=2, figsize=(6, len(genes) * 3))
 
-#     for ix, gene in enumerate(genes):
-#         if gene not in adata_measured.var.index:
-#             vs = np.zeros_like(np.array(adata_measured[:, 0].X).flatten())
-#         else:
-#             vs = np.array(adata_measured[:, gene].X).flatten()
+    for ix, gene in enumerate(genes):
+        if gene not in adata_measured.var.index:
+            vs = np.zeros_like(np.array(adata_measured[:, 0].X).flatten())
+        else:
+            vs = np.array(adata_measured[:, gene].X).flatten()
 
-#         xs, ys, vs = ordered_predictions(
-#             adata_measured.obs[x], adata_measured.obs[y], vs,
-#         )
+        xs, ys, vs = ordered_predictions(
+            adata_measured.obs[x], adata_measured.obs[y], vs,
+        )
 
-#         if log:
-#             vs = np.log(1 + np.asarray(vs))
-#         axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
-#         axs[ix, 0].set_title(gene + " (measured)")
-#         axs[ix, 0].axis("off")
-#         axs[ix, 0].set_aspect(1)
+        if log:
+            vs = np.log(1 + np.asarray(vs))
+        axs[ix, 0].scatter(xs, ys, c=vs, cmap=cmap, s=s)
+        axs[ix, 0].set_title(gene + " (measured)")
+        axs[ix, 0].axis("off")
+        axs[ix, 0].set_aspect(1)
 
-#         xs, ys, vs = ordered_predictions(
-#             adata_predicted.obs[x],
-#             adata_predicted.obs[y],
-#             np.array(adata_predicted[:, gene].X).flatten(),
-#         )
+        xs, ys, vs = ordered_predictions(
+            adata_predicted.obs[x],
+            adata_predicted.obs[y],
+            np.array(adata_predicted[:, gene].X).flatten(),
+        )
 
-#         if robust:
-#             vmin, vmax = q_value(vs, perc=perc)
-#         else:
-#             vmin, vmax = q_value(vs, perc=0)
+        if robust:
+            vmin, vmax = q_value(vs, perc=perc)
+        else:
+            vmin, vmax = q_value(vs, perc=0)
 
-#         if log:
-#             vs = np.log(1 + np.asarray(vs))
-#         axs[ix, 1].scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
-#         axs[ix, 1].set_title(gene + " (predicted)")
-#         axs[ix, 1].axis("off")
-#         axs[ix, 1].set_aspect(1)
+        if log:
+            vs = np.log(1 + np.asarray(vs))
+        axs[ix, 1].scatter(xs, ys, c=vs, cmap=cmap, s=s, vmin=vmin, vmax=vmax)
+        axs[ix, 1].set_title(gene + " (predicted)")
+        axs[ix, 1].axis("off")
+        axs[ix, 1].set_aspect(1)
 
-#         if invert_y is True:
-#             axs[ix, 0].invert_yaxis()
-#             axs[ix, 1].invert_yaxis()
+        if invert_y is True:
+            axs[ix, 0].invert_yaxis()
+            axs[ix, 1].invert_yaxis()
 
 
 def quick_plot_gene(
@@ -600,29 +600,40 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     )
     plt.tight_layout()
 
-def plot_auc(df_all_genes, test_genes=None):
     
+def plot_auc(df_all_genes, test_genes=None):
+    """
+        Plots auc curve which is used to evaluate model performance.
+    
+    Args:
+        df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp); 
+        test_genes (list): list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
+
+    Returns:
+        None
+    """
     metric_dict, ((pol_xs, pol_ys), (xs, ys)) = ut.eval_metric(df_all_genes, test_genes)
     
     fig = plt.figure()
-    plt.figure(figsize=(5, 5))
+    plt.figure(figsize=(6, 5))
 
     plt.plot(pol_xs, pol_ys, c='r')
     sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
         
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
-    plt.gca().set_aspect(1)
+    plt.gca().set_aspect(.5)
     plt.xlabel('score')
     plt.ylabel('spatial sparsity')
     plt.tick_params(axis='both', labelsize=8)
-    plt.title('Test gene AUC score and curve')
+    plt.title('Prediction on test transcriptome')
     
     textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
     # place a text box in upper left in axes coords
     plt.text(0.03, 0.1, textstr, fontsize=11,
-    verticalalignment='top', bbox=props)
+    verticalalignment='top', bbox=props);
+
     
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
@@ -654,4 +665,3 @@ mapping_colors = {
     "Macrophage": "#2b2d2fff",
     "CR": "#000000ff",
 }
-
