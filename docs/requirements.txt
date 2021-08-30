@@ -1,0 +1,13 @@
+sphinx==4.0.2
+nbsphinx==0.8.6
+nbsphinx-link==1.3.0
+sphinx-rtd-theme
+torch
+pandas==1.1.0
+numpy==1.19.1
+scipy==1.5.2
+seaborn==0.11.1
+scanpy>=1.6.0
+scikit-learn
+tqdm
+sphinx-gallery==0.9.0

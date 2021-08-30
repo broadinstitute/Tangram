@@ -16,11 +16,12 @@ from . import mapping_utils as mu
 import pandas as pd
 import logging
 import matplotlib as mpl
+from matplotlib.gridspec import GridSpec
 
 
 def q_value(data, perc):
     """
-    This function produces min and max values according to percentile for colormap in plot functions
+    Computes min and max values according to percentile for colormap in plot functions
 
     Args:
         data (numpy array): input
@@ -37,7 +38,7 @@ def q_value(data, perc):
 
 def plot_training_scores(adata_map, bins=10, alpha=0.7):
     """
-    This function plots the 4-panel training diagnosis plot
+    Plots the 4-panel training diagnosis plot
 
     Args:
         adata_map (AnnData):
@@ -154,6 +155,40 @@ def ordered_predictions(xs, ys, preds, reverse=False):
     )
 
 
+def convert_adata_array(adata):
+    if isinstance(adata.X, csc_matrix) or isinstance(adata.X, csr_matrix):
+        adata.X = adata.X.toarray()
+
+
+def construct_obs_plot(df_plot, adata, perc=0, suffix=None):
+    # clip
+    df_plot = df_plot.clip(df_plot.quantile(perc), df_plot.quantile(1 - perc), axis=1)
+
+    # normalize
+    df_plot = (df_plot - df_plot.min()) / (df_plot.max() - df_plot.min())
+
+    if suffix:
+        df_plot = df_plot.add_suffix(" ({})".format(suffix))
+    adata.obs = pd.concat([adata.obs, df_plot], axis=1)
+
+
+def plot_cell_annotation_sc(adata_sp, annotation_list, perc=0):
+
+    # remove previous df_plot in obs
+    adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
+
+    # construct df_plot
+    df = adata_sp.obsm["tangram_ct_pred"][annotation_list]
+    construct_obs_plot(df, adata_sp, perc=perc)
+
+    sc.pl.spatial(
+        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False,
+    )
+
+    # remove df_plot in obs
+    adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
+
+
 def plot_cell_annotation(
     adata_map,
     adata_sp,
@@ -254,6 +289,106 @@ def plot_cell_annotation(
         fig.suptitle(annotation)
 
 
+def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0):
+
+    # remove df_plot in obs
+    adata_measured.obs.drop(
+        ["{} (measured)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+    adata_predicted.obs.drop(
+        ["{} (predicted)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+
+    # prepare adatas
+    convert_adata_array(adata_measured)
+
+    adata_measured.var.index = [g.lower() for g in adata_measured.var.index]
+    adata_predicted.var.index = [g.lower() for g in adata_predicted.var.index]
+
+    adata_predicted.obsm = adata_measured.obsm
+    adata_predicted.uns = adata_measured.uns
+
+    # remove previous df_plot in obs
+    adata_measured.obs.drop(
+        ["{} (measured)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+    adata_predicted.obs.drop(
+        ["{} (predicted)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+
+    # construct df_plot
+    data = []
+    for ix, gene in enumerate(genes):
+        if gene not in adata_measured.var.index:
+            data.append(np.zeros_like(np.array(adata_measured[:, 0].X).flatten()))
+        else:
+            data.append(np.array(adata_measured[:, gene].X).flatten())
+
+    df = pd.DataFrame(
+        data=np.array(data).T, columns=genes, index=adata_measured.obs.index,
+    )
+    construct_obs_plot(df, adata_measured, suffix="measured")
+
+    df = pd.DataFrame(
+        data=np.array(adata_predicted[:, genes].X),
+        columns=genes,
+        index=adata_predicted.obs.index,
+    )
+    construct_obs_plot(df, adata_predicted, perc=perc, suffix="predicted")
+
+    fig = plt.figure(figsize=(7, len(genes) * 3.5))
+    gs = GridSpec(len(genes), 2, figure=fig)
+    for ix, gene in enumerate(genes):
+
+        ax_m = fig.add_subplot(gs[ix, 0])
+        sc.pl.spatial(
+            adata_measured,
+            color=["{} (measured)".format(gene)],
+            frameon=False,
+            ax=ax_m,
+            show=False,
+            cmap=cmap,
+        )
+        ax_p = fig.add_subplot(gs[ix, 1])
+        sc.pl.spatial(
+            adata_predicted,
+            color=["{} (predicted)".format(gene)],
+            frameon=False,
+            ax=ax_p,
+            show=False,
+            cmap=cmap,
+        )
+
+    #     sc.pl.spatial(adata_measured, color=['{} (measured)'.format(gene) for gene in genes], frameon=False)
+    #     sc.pl.spatial(adata_predicted, color=['{} (predicted)'.format(gene) for gene in genes], frameon=False)
+
+    # remove df_plot in obs
+    adata_measured.obs.drop(
+        ["{} (measured)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+    adata_predicted.obs.drop(
+        ["{} (predicted)".format(gene) for gene in genes],
+        inplace=True,
+        errors="ignore",
+        axis=1,
+    )
+
+
 def plot_genes(
     genes,
     adata_measured,
@@ -269,7 +404,7 @@ def plot_genes(
 ):
     """
     Utility function to plot and compare original and projected gene spatial pattern ordered by intensity of the gene signal.
-    
+
     Args:
         genes (list): list of gene names (str).
         adata_measured (AnnData): ground truth gene spatial AnnData
@@ -396,7 +531,7 @@ def quick_plot_gene(
 
 def plot_annotation_entropy(adata_map, annotation="cell_type"):
     """
-    This function plots entropy box plot by each annotation.
+    Utility function to plot entropy box plot by each annotation.
 
     Args:
         adata_map (AnnData): cell-by-voxel tangram mapping result.
@@ -415,7 +550,7 @@ def plot_annotation_entropy(adata_map, annotation="cell_type"):
 
 def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     """
-    This function plots gene level test scores with each gene's sparsity for mapping result.
+    Plots gene level test scores with each gene's sparsity for mapping result.
     
     Args:
         df_gene_score (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp, adata_sc); 
@@ -465,7 +600,41 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     )
     plt.tight_layout()
 
+    
+def plot_auc(df_all_genes, test_genes=None):
+    """
+        Plots auc curve which is used to evaluate model performance.
+    
+    Args:
+        df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp); 
+        test_genes (list): list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
 
+    Returns:
+        None
+    """
+    metric_dict, ((pol_xs, pol_ys), (xs, ys)) = ut.eval_metric(df_all_genes, test_genes)
+    
+    fig = plt.figure()
+    plt.figure(figsize=(6, 5))
+
+    plt.plot(pol_xs, pol_ys, c='r')
+    sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
+        
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.gca().set_aspect(.5)
+    plt.xlabel('score')
+    plt.ylabel('spatial sparsity')
+    plt.tick_params(axis='both', labelsize=8)
+    plt.title('Prediction on test transcriptome')
+    
+    textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
+    # place a text box in upper left in axes coords
+    plt.text(0.03, 0.1, textstr, fontsize=11,
+    verticalalignment='top', bbox=props);
+
+    
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
     "L6 CT": (0.19215686274509805, 0.5098039215686274, 0.7411764705882353),
@@ -496,4 +665,3 @@ mapping_colors = {
     "Macrophage": "#2b2d2fff",
     "CR": "#000000ff",
 }
-

@@ -48,7 +48,7 @@ def read_pickle(filename):
 
 def annotate_gene_sparsity(adata):
     """
-    This function annotate gene sparsity in given Anndatas. 
+    Annotates gene sparsity in given Anndatas. 
     Update given Anndata by creating `var` "sparsity" field with gene_sparsity (1 - % non-zero observations).
 
     Args:
@@ -378,7 +378,7 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
 
 
 def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None, genes=None):
-    """ This function compares generated spatial data with the true spatial data
+    """ Compares generated spatial data with the true spatial data
 
     Args:
         adata_ge (AnnData): generated spatial data returned by `project_genes`
@@ -467,7 +467,7 @@ def compare_spatial_geneexp(adata_ge, adata_sp, adata_sc=None, genes=None):
 
 
 def cv_data_gen(adata_sc, adata_sp, cv_mode="loo"):
-    """ This function generates pair of training/test gene indexes cross validation datasets
+    """ Generates pair of training/test gene indexes cross validation datasets
 
     Args:
         adata_sc (AnnData): single cell data
@@ -526,7 +526,7 @@ def cross_val(
     verbose=False,
 ):
     """
-    This function executes cross validation
+    Executes cross validation
 
     Args:
         adata_sc (AnnData): single cell data
@@ -673,7 +673,7 @@ def cross_val(
 
 def eval_metric(df_all_genes, test_genes=None):
     """
-    calculate metrics on given test_genes set for evaluation
+    Compute metrics on given test_genes set for evaluation
     
     Args:
         df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp); 
@@ -718,6 +718,9 @@ def eval_metric(df_all_genes, test_genes=None):
     pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
     pol = np.poly1d(pol_cs)  # build polynomial as function
     pol_ys = [pol(x) for x in pol_xs]  # compute polys
+    
+    if pol_ys[0] > 1:
+        pol_ys[0] = 1
 
     # if real root when y = 0, add point (x, 0):
     roots = pol.r
@@ -729,8 +732,8 @@ def eval_metric(df_all_genes, test_genes=None):
 
     if root is not None:
         pol_xs = np.append(pol_xs, root)
-        pol_ys = np.append(pol_ys, 0)
-
+        pol_ys = np.append(pol_ys, 0)       
+        
     np.append(pol_xs, 1)
     np.append(pol_ys, pol(1))
 

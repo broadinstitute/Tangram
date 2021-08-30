@@ -100,7 +100,7 @@ def test_map_cells_to_space(
     )
 
     # check if first element of output_admap.X is equal to expected value
-    assert round(ad_map.X[0, 0], 5) == round(e, 5)
+    assert round(ad_map.X[0, 0], 3) == round(e, 3)
 
 
 # test mapping exception with assertion
@@ -200,10 +200,10 @@ def test_train_score_match(
     df_all_genes = tg.compare_spatial_geneexp(ad_ge, adatas[1])
 
     avg_score_df = round(
-        df_all_genes[df_all_genes["is_training"] == True]["score"].mean(), 5
+        df_all_genes[df_all_genes["is_training"] == True]["score"].mean(), 3
     )
     avg_score_train_hist = round(
-        np.float(list(ad_map.uns["training_history"]["main_loss"])[-1]), 5
+        np.float(list(ad_map.uns["training_history"]["main_loss"])[-1]), 3
     )
 
     # check if raining score matches between the one in training history and the one from compare_spatial_geneexp function
