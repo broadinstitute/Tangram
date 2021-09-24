@@ -111,6 +111,9 @@ You do not need to segment cells in your histology for mapping on spatial transc
 #### I run out of memory when I map: what should I do?
 Reduce your spatial data in various parts and map each single part. If that is not sufficient, you will need to downsample your single cell data as well.
 
+#### How to use Tangram with Squidpy?
+For tutorial, please reference the example [here](https://github.com/broadinstitute/Tangram/blob/master/tutorial_sq_tangram.ipynb). For environment setup, please use squidpy=1.1.0 and reference this [yml file](https://github.com/broadinstitute/Tangram/blob/master/environment.yml).
+
 ***
 ## How to cite Tangram
 Tangram has been released in the following publication
