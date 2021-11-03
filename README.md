@@ -21,6 +21,10 @@ Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-se
 
 To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. 
 
+* set up conda environment for Tangram 
+```
+    conda env create -f environment.yml
+```
 * install tangram-sc from shell:
 ```
     pip install tangram-sc

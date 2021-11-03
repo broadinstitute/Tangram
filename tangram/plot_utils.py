@@ -313,7 +313,9 @@ def plot_cell_annotation(
 def plot_genes_sc(
     genes, 
     adata_measured, 
-    adata_predicted, 
+    adata_predicted,
+    x="x",
+    y = "y",
     spot_size=None, 
     scale_factor=None, 
     cmap="inferno", 
@@ -382,6 +384,13 @@ def plot_genes_sc(
     gs = GridSpec(len(genes), 2, figure=fig)
     
     #non visium data
+    if 'spatial' not in adata_measured.obsm.keys():
+        #add spatial coordinates to obsm of spatial data 
+        coords = [[x,y] for x,y in zip(adata_measured.obs[x].values,adata_measured.obs[y].values)]
+        adata_measured.obsm['spatial'] = np.array(coords)
+        coords = [[x,y] for x,y in zip(adata_predicted.obs[x].values,adata_predicted.obs[y].values)]
+        adata_predicted.obsm['spatial'] = np.array(coords)
+
     if ("spatial" not in adata_measured.uns.keys()) and (spot_size==None and scale_factor==None):
         raise ValueError("Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist")
         

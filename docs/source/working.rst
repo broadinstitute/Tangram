@@ -2,8 +2,8 @@ Tangram Under the Hood
 ===========================
 
 Tangram instantiates a `Mapper` object passing the following arguments:
-* _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
-* _G_: spatial data matrix with shape voxels-by-genes. Voxel can contain multiple cells.
+| _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
+| _G_: spatial data matrix with shape voxels-by-genes. Voxel can contain multiple cells.
 
 Then, Tangram searches for a mapping matrix *M*, with shape voxels-by-cells, where the element *M\_ij* signifies the probability of cell *i* of being in spot *j*. Tangram computes the matrix *M* by minimizing the following loss:
 
