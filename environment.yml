@@ -1,5 +1,5 @@
 dependencies:
-  - python=3.8.5
+  - python>=3.8.5
   - pip=20.2.2
   - pytorch=1.4.0
   - scipy=1.5.2
