@@ -73,13 +73,13 @@ def get_matched_genes(prior_genes_names, sn_genes_names, excluded_genes=None):
         prior_genes_names (sequence): List of gene names in the spatial data.
         sn_genes_names (sequence): List of gene names in the single nuclei data.
         excluded_genes (sequence): Optional. List of genes to be excluded. These genes are excluded even if present in both datasets.
-            If None, no genes are excluded. Default is None.
+        If None, no genes are excluded. Default is None.
 
     Returns:
         A tuple (mask_prior_indices, mask_sn_indices, selected_genes), with:
-            mask_prior_indices (list): List of indices for the selected genes in 'prior_genes_names'.
-            mask_sn_indices (list): List of indices for the selected genes in 'sn_genes_names'.
-            selected_genes (list): List of names of the selected genes.
+        mask_prior_indices (list): List of indices for the selected genes in 'prior_genes_names'.
+        mask_sn_indices (list): List of indices for the selected genes in 'sn_genes_names'.
+        selected_genes (list): List of names of the selected genes.
         For each i, selected_genes[i] = prior_genes_names[mask_prior_indices[i]] = sn_genes_names[mask_sn_indices[i].
     """
     prior_genes_names = np.array(prior_genes_names)
@@ -115,8 +115,8 @@ def one_hot_encoding(l, keep_aggregate=False):
 
     Returns:
         A DataFrame with a column for each unique value in the sequence and a one-hot-encoding, and an additional
-            column with the input list if 'keep_aggregate' is True.
-            The number of rows are equal to len(l).
+        column with the input list if 'keep_aggregate' is True.
+        The number of rows are equal to len(l).
     """
     df_enriched = pd.DataFrame({"cl": l})
     for i in l.unique():
@@ -137,7 +137,7 @@ def project_cell_annotations(
         adata_sp (AnnData): spatial data used to save the mapping result.
         annotation (str): Optional. Cell annotations matrix with shape (number_cells, number_annotations). Default is 'cell_type'.
         threshold (float): Optional. Valid for using with adata_map.obs['F_out'] from 'constrained' mode mapping. 
-                           Cell's probability below this threshold will be dropped. Default is 0.5.
+        Cell's probability below this threshold will be dropped. Default is 0.5.
     Returns:
         None.
         Update spatial Anndata by creating `obsm` `tangram_ct_pred` field with a dataframe with spatial prediction for each annotation (number_spots, number_annotations) 
@@ -797,10 +797,10 @@ def df_to_cell_types(df, cell_types):
 
     Args:
         df (DataFrame): Columns correspond to cell types.  Each row in the DataFrame corresponds to a voxel and
-            specifies the known number of cells in that voxel for each cell type (int).
-            The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
+        specifies the known number of cells in that voxel for each cell type (int).
+        The additional column 'centroids' specifies the coordinates of the cells in the voxel (sequence of (x,y) pairs).
         cell_types (sequence): Sequence of cell type names to be considered for deconvolution.
-            Columns in 'df' not included in 'cell_types' are ignored for assignment.
+        Columns in 'df' not included in 'cell_types' are ignored for assignment.
 
     Returns:
         A dictionary <cell type name> -> <list of (x,y) coordinates for the cell type>
