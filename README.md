@@ -27,9 +27,10 @@ To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scan
 ```
 * install tangram-sc from shell:
 ```
+    conda activate tangram-env
     pip install tangram-sc
 ```
-* import tangram
+* To start using Tangram, import tangram in your jupyter notebooks or/and scripts 
 ```
     import tangram as tg
 ```
