@@ -78,21 +78,18 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
     )
 
     # Calculate uniform density prior as 1/number_of_spots
-    rna_count_per_spot = adata_sp.X.sum(axis=1)
     adata_sp.obs["uniform_density"] = np.ones(adata_sp.X.shape[0]) / adata_sp.X.shape[0]
     logging.info(
         f"uniform based density prior is calculated and saved in `obs``uniform_density` of the spatial Anndata."
     )
 
     # Calculate rna_count_based density prior as % of rna molecule count
-    rna_count_per_spot = adata_sp.X.sum(axis=1)
-    adata_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
-        rna_count_per_spot
-    )
+    rna_count_per_spot = np.array(adata_sp.X.sum(axis=1)).squeeze()
+    adata_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(rna_count_per_spot)
     logging.info(
         f"rna count based density prior is calculated and saved in `obs``rna_count_based_density` of the spatial Anndata."
     )
-
+        
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
     """

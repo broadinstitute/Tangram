@@ -17,8 +17,13 @@ Cell Level
 **************************
 To install Tangram, make sure you have `PyTorch <https://pytorch.org/>`_ and `scanpy <https://scanpy.readthedocs.io/en/stable/>`_ installed. If you need more details on the dependences, look at the `environment.yml <https://github.com/broadinstitute/Tangram/blob/master/environment.yml>`_ file. 
 
+Create a conda environment for Tangram::
+
+    conda env create --file environment.yml
+
 Install tangram-sc from shell::
-    
+
+    conda activate tangram-env
     pip install tangram-sc
     
 Import tangram::

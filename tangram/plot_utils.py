@@ -172,20 +172,41 @@ def construct_obs_plot(df_plot, adata, perc=0, suffix=None):
     adata.obs = pd.concat([adata.obs, df_plot], axis=1)
 
 
-def plot_cell_annotation_sc(adata_sp, annotation_list, perc=0):
-
+def plot_cell_annotation_sc(
+    adata_sp, 
+    annotation_list, 
+    x="x", 
+    y="y", 
+    spot_size=None, 
+    scale_factor=0.1, 
+    perc=0,
+    ax=None
+):
+        
     # remove previous df_plot in obs
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
 
     # construct df_plot
     df = adata_sp.obsm["tangram_ct_pred"][annotation_list]
     construct_obs_plot(df, adata_sp, perc=perc)
-
+    
+    #non visium data 
+    if 'spatial' not in adata_sp.obsm.keys():
+        #add spatial coordinates to obsm of spatial data 
+        coords = [[x,y] for x,y in zip(adata_sp.obs[x].values,adata_sp.obs[y].values)]
+        adata_sp.obsm['spatial'] = np.array(coords)
+    
+    if 'spatial' not in adata_sp.uns.keys() and spot_size == None and scale_factor == None:
+        raise ValueError("Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist")
+    
+    #REVIEW
+    if 'spatial' in adata_sp.uns.keys() and spot_size != None and scale_factor != None:
+        raise ValueError("Spot Size and Scale Factor should be None when ad_sp.uns['spatial'] exists")
+    
     sc.pl.spatial(
-        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False,
+        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False, spot_size=spot_size, scale_factor=scale_factor, ax=ax
     )
 
-    # remove df_plot in obs
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
 
 
@@ -289,7 +310,18 @@ def plot_cell_annotation(
         fig.suptitle(annotation)
 
 
-def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0):
+def plot_genes_sc(
+    genes, 
+    adata_measured, 
+    adata_predicted,
+    x="x",
+    y = "y",
+    spot_size=None, 
+    scale_factor=0.1, 
+    cmap="inferno", 
+    perc=0,
+    return_figure=False
+):
 
     # remove df_plot in obs
     adata_measured.obs.drop(
@@ -350,11 +382,24 @@ def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0
 
     fig = plt.figure(figsize=(7, len(genes) * 3.5))
     gs = GridSpec(len(genes), 2, figure=fig)
-    for ix, gene in enumerate(genes):
+    
+    #non visium data
+    if 'spatial' not in adata_measured.obsm.keys():
+        #add spatial coordinates to obsm of spatial data 
+        coords = [[x,y] for x,y in zip(adata_measured.obs[x].values,adata_measured.obs[y].values)]
+        adata_measured.obsm['spatial'] = np.array(coords)
+        coords = [[x,y] for x,y in zip(adata_predicted.obs[x].values,adata_predicted.obs[y].values)]
+        adata_predicted.obsm['spatial'] = np.array(coords)
 
+    if ("spatial" not in adata_measured.uns.keys()) and (spot_size==None and scale_factor==None):
+        raise ValueError("Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist")
+        
+    for ix, gene in enumerate(genes):
         ax_m = fig.add_subplot(gs[ix, 0])
         sc.pl.spatial(
             adata_measured,
+            spot_size=spot_size,
+            scale_factor=scale_factor,
             color=["{} (measured)".format(gene)],
             frameon=False,
             ax=ax_m,
@@ -364,13 +409,15 @@ def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0
         ax_p = fig.add_subplot(gs[ix, 1])
         sc.pl.spatial(
             adata_predicted,
+            spot_size=spot_size,
+            scale_factor=scale_factor,
             color=["{} (predicted)".format(gene)],
             frameon=False,
             ax=ax_p,
             show=False,
             cmap=cmap,
         )
-
+        
     #     sc.pl.spatial(adata_measured, color=['{} (measured)'.format(gene) for gene in genes], frameon=False)
     #     sc.pl.spatial(adata_predicted, color=['{} (predicted)'.format(gene) for gene in genes], frameon=False)
 
@@ -387,6 +434,8 @@ def plot_genes_sc(genes, adata_measured, adata_predicted, cmap="inferno", perc=0
         errors="ignore",
         axis=1,
     )
+    if return_figure==True:
+        return fig
 
 
 def plot_genes(
@@ -631,8 +680,7 @@ def plot_auc(df_all_genes, test_genes=None):
     textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
     # place a text box in upper left in axes coords
-    plt.text(0.03, 0.1, textstr, fontsize=11,
-    verticalalignment='top', bbox=props);
+    plt.text(0.03, 0.1, textstr, fontsize=11, verticalalignment='top', bbox=props);
 
     
 # Colors used in the manuscript for deterministic assignment.

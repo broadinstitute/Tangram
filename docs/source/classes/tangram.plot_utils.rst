@@ -27,9 +27,13 @@
     
     plot_cell_annotation
     
+    plot_cell_annotation_sc
+    
     plot_gene_sparsity
     
     plot_genes
+    
+    plot_genes_sc
     
     plot_test_scores
     
