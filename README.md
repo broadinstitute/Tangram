@@ -2,22 +2,14 @@
 
 [![PyPI version](https://badge.fury.io/py/tangram-sc.svg)](https://badge.fury.io/py/tangram-sc)
 
-Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. The best way to familiarize yourself with Tangram is to check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/example/1_tutorial_tangram.ipynb). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1jP3M7wu-YJrtDzvHSdK5HIdee0SNVs0b?usp=sharing)
+Tangram is a Python package, written in [PyTorch](https://pytorch.org/) and based on [scanpy](https://scanpy.readthedocs.io/en/stable/), for mapping single-cell (or single-nucleus) gene expression data onto spatial gene expression data. The single-cell dataset and the spatial dataset should be collected from the same anatomical region/tissue type, ideally from a biological replicate, and need to share a set of genes. Tangram aligns the single-cell data in space by fitting gene expression on the shared genes. The best way to familiarize yourself with Tangram is to check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/tutorial_tangram_with_squidpy.ipynb) and [our documentation](https://tangram-sc.readthedocs.io/en/latest/index.html). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1jP3M7wu-YJrtDzvHSdK5HIdee0SNVs0b?usp=sharing)\
+If you don't use squidpy yet, check out our [previous tutorial.](https://github.com/broadinstitute/Tangram/blob/master/tutorial_tangram_without_squidpy.ipynb)
 
 ![Tangram_overview](https://raw.githubusercontent.com/broadinstitute/Tangram/master/figures/tangram_overview.png)
-Tangram has been tested on various types of transcriptomic data (10Xv3, Smart-seq2 and SHARE-seq for single cell data; MERFISH, Visium, Slide-seq, smFISH and STARmap as spatial data). In our [preprint](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v1), we used Tangram to reveal spatial maps of cell types and gene expression at single cell resolution in the adult mouse brain. More recently, we have applied our method to different tissue types including human lung, human kidney developmental mouse brain and metastatic breast cancer.
 
 ***
-## Tangram News
 
-* On Jan 28th 2021, Sten Linnarsson gave a [talk](https://www.youtube.com/watch?v=0mxIe2AsSKs) at the WWNDev Forum and demostrated their mappings of the developmental mouse brain using Tangram.
-
-* On Mar 9th 2021, Nicholas Eagles wrote a [blog post](http://research.libd.org/rstatsclub/2021/03/09/lessons-learned-applying-tangram-on-visium-data/#.YFDd7ZNKhax) about applying Tangram on Visium data.
-
-
-
-***
-## How to run Tangram at cell level
+## How to install Tangram
 
 To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scanpy](https://scanpy.readthedocs.io/en/stable/) installed. If you need more details on the dependences, look at the `environment.yml` file. 
 
@@ -34,8 +26,11 @@ To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scan
 ```
     import tangram as tg
 ```
+## Two ways to run Tangram 
 
-Then load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
+### How to run Tangram at cell level 
+
+Load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
 
 ```
     ad_sp = sc.read_h5ad(path)
@@ -49,7 +44,7 @@ The function `pp_adatas` finds the common genes between adata_sc, adata_sp, and 
     ad_map = tg.map_cells_to_space(ad_sc, ad_sp)
 ```
 
-The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j]` gives the probability for cell $i$ to be in voxel $j$. This structure can be used to project gene expression from the single cell data to space, which is achieved via `tg.project_genes`.
+The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j]` gives the probability for cell ```i``` to be in voxel ```j```. This structure can be used to project gene expression from the single cell data to space, which is achieved via `tg.project_genes`.
 
 ```
     ad_ge = tg.project_genes(ad_map, ad_sc)
@@ -57,13 +52,11 @@ The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j
 
 The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
 
-For more details on how to use Tangram check out [our tutorial](https://github.com/broadinstitute/Tangram/blob/master/example/1_tutorial_tangram.ipynb). [![colab tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1SVLUIZR6Da6VUyvX_2RkgVxbPn8f62ge?usp=sharing)
-
 ***
 
-## Run Tangram at cluster level
+## How to run Tangram at cluster level
 
-To enable faster training and consume less memory, Tangram mapping can be done at cell cluster level.
+To enable faster training and consume less memory, Tangram mapping can be done at cell cluster level. This modification was introduced by [Sten Linnarsson.](https://www.youtube.com/watch?v=0mxIe2AsSKs)
 
 Prepare the input data as the same you would do for cell level Tangram mapping. Then map using following code:
 
@@ -105,7 +98,7 @@ The above accounts for basic Tangram usage. In our manuscript, we modified the l
 ## Frequently Asked Questions
 
 #### Do I need a GPU for running Tangram?
-A GPU is not required but is recommended. We run most of our mappings on a single P100 which maps ~50k cells in a few minutes. 
+Mapping with cluster mode is fine on a standard laptop. For mapping at single cell level, GPU is not required but is recommended. We run most of our mappings on a single P100 which maps ~50k cells in a few minutes. 
 
 #### How do I choose a list of training genes?
 A good way to start is to use the top 1k unique marker genes, stratified across cell types, as training genes. Alternatively, you can map using the whole transcriptome. Ideally, training genes should contain high quality signals: if most training genes are rich in dropouts or obtained with bad RNA probes your mapping will not be accurate.
@@ -120,16 +113,16 @@ Reduce your spatial data in various parts and map each single part. If that is n
 ## How to cite Tangram
 Tangram has been released in the following publication
 
-Biancalani* T., Scalia* G. et al. - _Deep learning and alignment of spatially-resolved whole transcriptomes of single cells in the mouse brain with Tangram_ [biorXiv 10.1101/2020.08.29.272831](https://www.biorxiv.org/content/10.1101/2020.08.29.272831v3) (2020)
+Biancalani* T., Scalia* G. et al. - _Deep learning and alignment of spatially-resolved whole transcriptomes of single cells in the mouse brain with Tangram_ [Nature Methods](https://www.nature.com/articles/s41592-021-01264-7) **18**, 1352–1362 (2021)
 
 If you have questions, please contact the authors of the method:
 - Tommaso Biancalani - <biancalt@gene.com>  
 - Gabriele Scalia - <gabriele.scalia@roche.com>
 
 PyPI maintainer:
+- Shreya Gaddam - <gaddams@gene.com>
 - Tommaso Biancalani - <biancalt@gene.com>
 - Ziqing Lu - <luz21@gene.com>
-- Shreya Gaddam - <gaddams@gene.com>
 
 The artwork has been curated by:
 - Anna Hupalowska <ahupalow@broadinstitute.org>
