@@ -54,7 +54,7 @@ The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`
 
 ***
 
-## How to run Tangram at cluster level
+### How to run Tangram at cluster level
 
 To enable faster training and consume less memory, Tangram mapping can be done at cell cluster level. This modification was introduced by [Sten Linnarsson.](https://www.youtube.com/watch?v=0mxIe2AsSKs)
 
