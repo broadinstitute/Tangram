@@ -178,7 +178,7 @@ def plot_cell_annotation_sc(
     x="x", 
     y="y", 
     spot_size=None, 
-    scale_factor=0.1, 
+    scale_factor=None, 
     perc=0,
     ax=None
 ):
@@ -317,7 +317,7 @@ def plot_genes_sc(
     x="x",
     y = "y",
     spot_size=None, 
-    scale_factor=0.1, 
+    scale_factor=None, 
     cmap="inferno", 
     perc=0,
     return_figure=False
