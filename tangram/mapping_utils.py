@@ -141,7 +141,6 @@ def adata_to_nmf_factor_expression(adata, cluster_label, nmf_coeffs, sample_name
         cluster_label (String): field in `adata.obs` used for aggregating values
         nmf_coeffs (pd.DataFrame): NMF `H` matrix (factor by sample)
         sample_name (String): name of the sample to be mapped as labeled in `nmf_coeffs`
-        scale (bool): Optional. Whether weight input single cell by # of cells in cluster. Default is True.
         add_density (bool): Optional. If True, the normalized number of cells in each cluster is 
         added to the returned AnnData as obs.cluster_density. Default is True.
 
