@@ -30,7 +30,7 @@ To install Tangram, make sure you have [PyTorch](https://pytorch.org/) and [scan
 
 ### How to run Tangram at cell level 
 
-Load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) format), and pre-process them using `tg.pp_adatas`:
+Load your spatial data and your single cell data (which should be in [AnnData](https://anndata.readthedocs.io/en/latest/) format), and pre-process them using `tg.pp_adatas`:
 
 ```
     ad_sp = sc.read_h5ad(path)
@@ -86,7 +86,7 @@ Tangram instantiates a `Mapper` object passing the following arguments:
 - _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
 - _G_: spatial data matrix with shape voxels-by-genes. Voxel can contain multiple cells.
 
-Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, where the element _M\_ij_ signifies the probability of cell _i_ of being in spot _j_. Tangram computes the matrix _M_ by minimizing the following loss:
+Then, Tangram searches for a mapping matrix _M_, with shape voxels-by-cells, where the element _M\_ij_ signifies the probability of cell _i_ of being in spot _j_. Tangram computes the matrix _M_ by maximizing the following:
 
 <img src="https://raw.githubusercontent.com/broadinstitute/Tangram/master/figures/tangram_loss.gif" width="400">
 
