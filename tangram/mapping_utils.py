@@ -19,7 +19,7 @@ from . import utils as ut
 logging.getLogger().setLevel(logging.INFO)
 
 
-def pp_adatas(adata_sc, adata_sp, genes=None):
+def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = False):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
     - Remove genes that all entries are zero
@@ -36,22 +36,23 @@ def pp_adatas(adata_sc, adata_sp, genes=None):
         update adata_sp by creating `uns` `training_genes` `overlap_genes` fields and creating `obs` `rna_count_based_density` & `uniform_density` field
     """
 
-    # put all var index to lower case to align
-    adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
-    adata_sp.var.index = [g.lower() for g in adata_sp.var.index]
-
-    adata_sc.var_names_make_unique()
-    adata_sp.var_names_make_unique()
-
     # remove all-zero-valued genes
     sc.pp.filter_genes(adata_sc, min_cells=1)
     sc.pp.filter_genes(adata_sp, min_cells=1)
 
     if genes is None:
         # Use all genes
-        genes = [g.lower() for g in adata_sc.var.index]
-    else:
+        genes = adata_sc.var.index
+               
+    # put all var index to lower case to align
+    if gene_to_lowercase:
+        adata_sc.var.index = [g.lower() for g in adata_sc.var.index]
+        adata_sp.var.index = [g.lower() for g in adata_sp.var.index]
         genes = list(g.lower() for g in genes)
+
+    adata_sc.var_names_make_unique()
+    adata_sp.var_names_make_unique()
+    
 
     # Refine `marker_genes` so that they are shared by both adatas
     genes = list(set(genes) & set(adata_sc.var.index) & set(adata_sp.var.index))
