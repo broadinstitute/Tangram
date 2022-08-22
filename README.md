@@ -120,6 +120,7 @@ If you have questions, please contact the authors of the method:
 - Gabriele Scalia - <gabriele.scalia@roche.com>
 
 PyPI maintainer:
+- Hejin Huang - <huang.hejin@gene.com>
 - Shreya Gaddam - <gaddams@gene.com>
 - Tommaso Biancalani - <biancalt@gene.com>
 - Ziqing Lu - <luz21@gene.com>
