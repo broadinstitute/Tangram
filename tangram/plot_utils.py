@@ -180,6 +180,8 @@ def plot_cell_annotation_sc(
     spot_size=None, 
     scale_factor=None, 
     perc=0,
+    alpha_img=1.0,
+    bw=False,
     ax=None
 ):
         
@@ -204,7 +206,8 @@ def plot_cell_annotation_sc(
         raise ValueError("Spot Size and Scale Factor should be None when ad_sp.uns['spatial'] exists")
     
     sc.pl.spatial(
-        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False, spot_size=spot_size, scale_factor=scale_factor, ax=ax
+        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False, spot_size=spot_size,
+        scale_factor=scale_factor, alpha_img=alpha_img, bw=bw, ax=ax
     )
 
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
@@ -320,6 +323,8 @@ def plot_genes_sc(
     scale_factor=None, 
     cmap="inferno", 
     perc=0,
+    alpha_img=1.0,
+    bw=False,
     return_figure=False
 ):
 
@@ -405,6 +410,8 @@ def plot_genes_sc(
             ax=ax_m,
             show=False,
             cmap=cmap,
+            alpha_img=alpha_img,
+            bw=bw
         )
         ax_p = fig.add_subplot(gs[ix, 1])
         sc.pl.spatial(
@@ -416,6 +423,8 @@ def plot_genes_sc(
             ax=ax_p,
             show=False,
             cmap=cmap,
+            alpha_img=alpha_img,
+            bw=bw
         )
         
     #     sc.pl.spatial(adata_measured, color=['{} (measured)'.format(gene) for gene in genes], frameon=False)
