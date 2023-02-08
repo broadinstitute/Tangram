@@ -273,7 +273,7 @@ def count_cell_annotations(
         vox_ct = filtered_voxels_to_types
 
     else:
-        vox_ct = [(resulting_voxels, adata_sc.obs[annotation])]
+        vox_ct = list(zip(resulting_voxels, adata_sc.obs[annotation]))
 
     df_classes = one_hot_encoding(adata_sc.obs[annotation])
     for index, i in enumerate(df_classes.columns):
