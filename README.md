@@ -50,7 +50,7 @@ The returned AnnData,`ad_map`, is a cell-by-voxel structure where `ad_map.X[i, j
     ad_ge = tg.project_genes(ad_map, ad_sc)
 ```
 
-The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than single cell data. It can also be used to transfer cell types onto space. 
+The returned `ad_ge` is a voxel-by-gene AnnData, similar to spatial data `ad_sp`, but where gene expression has been projected from the single cells. This allows to extend gene throughput, or correct for dropouts, if the single cells have higher quality (or more genes) than spatial data. It can also be used to transfer cell types onto space. 
 
 ***
 
