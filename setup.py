@@ -19,8 +19,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/broadinstitute/Tangram",
     packages=setuptools.find_namespace_packages(),
-    classifiers=["Programming Language :: Python :: 3.6", "Operating System :: MacOS",],
-    python_requires=">=3.6",
+    classifiers=["Programming Language :: Python :: 3.8.5", "Operating System :: MacOS",],
+    python_requires=">=3.8.5",
     install_requires=[
         "pip",
         "torch",
