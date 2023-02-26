@@ -130,6 +130,45 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 
     return adata_ret
 
+def adata_to_nmf_factor_expression(adata, cluster_label, nmf_coeffs, sample_name, add_density=True):
+    """
+    Convert an AnnData to a new AnnData with cluster expressions. Clusters are based on `cluster_label` 
+    in `adata.obs`.  The returned AnnData has an observation for each cluster, with the 
+    cluster-level expression equals to the average expression for that cluster.
+    All annotations in `adata.obs` except `cluster_label` are discarded in the returned AnnData.
+    
+    Args:
+        adata (AnnData): NMF `W` AnnData object (obs=factor, var=genes)
+        cluster_label (String): field in `adata.obs` used for aggregating values
+        nmf_coeffs (pd.DataFrame): NMF `H` matrix (factor by sample)
+        sample_name (String): name of the sample to be mapped as labeled in `nmf_coeffs`
+        add_density (bool): Optional. If True, the normalized number of cells in each cluster is 
+        added to the returned AnnData as obs.cluster_density. Default is True.
+
+    Returns:
+        AnnData: aggregated single cell data
+
+    """
+    try:
+        unique_labels = adata.obs[cluster_label].unique()
+    except KeyError as e:
+        raise ValueError("Provided label must belong to adata.obs.")
+    
+    new_obs = pd.DataFrame({cluster_label: unique_labels})
+    adata_ret = sc.AnnData(obs=new_obs, var=adata.var, uns=adata.uns)
+    X_new = np.empty((len(unique_labels), len(adata.var))).astype(object)
+    
+    for index, l in enumerate(unique_labels):
+        X_new[index] = np.multiply(adata[adata.obs[cluster_label] == l].X, nmf_coeffs[sample_name].loc[l])
+    adata_ret.X = X_new
+
+    if add_density:
+        adata_ret.obs["cluster_density"] = adata_ret.obs[cluster_label].map(
+            lambda i: nmf_coeffs[sample_name][i]
+        )
+        adata_ret.obs['cluster_density'] /= adata_ret.obs['cluster_density'].sum()
+
+    return adata_ret
 
 def map_cells_to_space(
     adata_sc,
@@ -137,6 +176,8 @@ def map_cells_to_space(
     cv_train_genes=None,
     cluster_label=None,
     mode="cells",
+    nmf_coeffs=None,
+    sample_name=None,
     device="cpu",
     learning_rate=0.1,
     num_epochs=1000,
@@ -160,7 +201,10 @@ def map_cells_to_space(
         adata_sp (AnnData): gene spatial data
         cv_train_genes (list): Optional. Training gene list. Default is None.
         cluster_label (str): Optional. Field in `adata_sc.obs` used for aggregating single cell data. Only valid for `mode=clusters`.
-        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained'. Default is 'cell'.
+        nmf_coeffs (pd.DataFrame): NMF `H` matrix (factor by sample). Only valid for `mode=nmf`
+        sample_name (String): name of the sample to be mapped as labeled in `nmf_coeffs`. Only valid for `mode=nmf`
+        mode (str): Optional. Tangram mapping mode. Currently supported: 'cell', 'clusters', 'constrained', 'nmf'
+        . Default is 'cell'.
         device (string or torch.device): Optional. Default is 'cpu'.
         learning_rate (float): Optional. Learning rate for the optimizer. Default is 0.1.
         num_epochs (int): Optional. Number of epochs. Default is 1000.
@@ -196,11 +240,14 @@ def map_cells_to_space(
     if lambda_d > 0 and density_prior is None:
         raise ValueError("When lambda_d is set, please define the density_prior.")
 
-    if mode not in ["clusters", "cells", "constrained"]:
-        raise ValueError('Argument "mode" must be "cells", "clusters" or "constrained')
+    if mode not in ["clusters", "cells", "constrained", "nmf"]:
+        raise ValueError('Argument "mode" must be "cells", "clusters", "constrained, or "nmf"')
 
     if mode == "clusters" and cluster_label is None:
         raise ValueError("A cluster_label must be specified if mode is 'clusters'.")
+    
+    if mode == "nmf" and (nmf_coeffs is None or sample_name is None):
+        raise ValueError("'nmf_coeffs' and 'sample_name' must be specified if mode is 'nmf'.")
 
     if mode == "constrained" and not all([target_count, lambda_f_reg, lambda_count]):
         raise ValueError(
@@ -210,6 +257,10 @@ def map_cells_to_space(
     if mode == "clusters":
         adata_sc = adata_to_cluster_expression(
             adata_sc, cluster_label, scale, add_density=True
+        )
+    if mode == "nmf":
+        adata_sc = adata_to_nmf_factor_expression(
+            adata_sc, cluster_label, nmf_coeffs, sample_name, add_density=True
         )
 
     # Check if training_genes key exist/is valid in adatas.uns
@@ -273,10 +324,10 @@ def map_cells_to_space(
     if mode == "cells":
         d = density_prior
 
-    if mode == "clusters":
+    if mode in ["clusters", "nmf"]: # expected cell cluster/nmf cluster density
         d_source = np.array(adata_sc.obs["cluster_density"])
 
-    if mode in ["clusters", "constrained"]:
+    if mode in ["clusters", "constrained", "nmf"]:
         if density_prior is None:
             d = adata_sp.obs["uniform_density"]
             d_str = "uniform"
@@ -293,7 +344,7 @@ def map_cells_to_space(
     else:
         print_each = None
 
-    if mode in ["cells", "clusters"]:
+    if mode in ["cells", "clusters", "nmf"]:
         hyperparameters = {
             "lambda_d": lambda_d,  # KL (ie density) term
             "lambda_g1": lambda_g1,  # gene-voxel cos sim
