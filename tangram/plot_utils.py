@@ -348,11 +348,15 @@ def plot_genes_sc(
     alpha_img=1.0,
     bw=False,
     return_figure=False,
+        lower_gene_names: bool = False,
 ):
     if isinstance(genes, str):
         _genes = [genes]
     else:
         _genes = genes
+
+    if lower_gen_names:
+        _genes = [g.lower() for g in _genes]
 
     # remove df_plot in obs
     adata_measured.obs.drop(
