@@ -1,22 +1,22 @@
 """
 This module includes plotting utility functions.
 """
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
-import seaborn as sns
-from scipy.stats import entropy
+from collections.abc import Sequence
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import scanpy as sc
+import seaborn as sns
+from matplotlib.gridspec import GridSpec
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
+from scipy.stats import entropy
 
-from . import utils as ut
 from . import mapping_utils as mu
-
-import pandas as pd
-import logging
-import matplotlib as mpl
-from matplotlib.gridspec import GridSpec
+from . import utils as ut
 
 
 def q_value(data, perc):
@@ -104,7 +104,7 @@ def plot_gene_sparsity(
         adata_1 (AnnData): Input data
         adata_2 (AnnData): Input data
         xlabel (str): Optional. For setting the xlabel in the plot. Default is 'adata_1'.
-        ylabel (str): Optional. For setting the ylabel in the plot. Default is 'adata_2'.  
+        ylabel (str): Optional. For setting the ylabel in the plot. Default is 'adata_2'.
         genes (list): Optional. List of genes to use. If `None`, all genes are used.
         s (float): Optional. Controls the size of marker. Default is 1.
 
@@ -138,7 +138,7 @@ def ordered_predictions(xs, ys, preds, reverse=False):
         ys (Pandas series): Sequence of y coordinates (floats).
         preds (Pandas series): Sequence of spatial prediction.
         reverse (bool): Optional. False will sort ascending, True will sort descending. Default is False.
-        
+
     Returns:
         Returns the ordered xs, ys, preds.
     """
@@ -173,41 +173,59 @@ def construct_obs_plot(df_plot, adata, perc=0, suffix=None):
 
 
 def plot_cell_annotation_sc(
-    adata_sp, 
-    annotation_list, 
-    x="x", 
-    y="y", 
-    spot_size=None, 
-    scale_factor=None, 
+    adata_sp,
+    annotation_list,
+    spatial_key: str | None = "spatial",
+    y="y",
+    x="x",
+    spot_size=None,
+    scale_factor=None,
     perc=0,
     alpha_img=1.0,
     bw=False,
-    ax=None
+    ax=None,
 ):
-        
     # remove previous df_plot in obs
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
 
     # construct df_plot
     df = adata_sp.obsm["tangram_ct_pred"][annotation_list]
     construct_obs_plot(df, adata_sp, perc=perc)
-    
-    #non visium data 
-    if 'spatial' not in adata_sp.obsm.keys():
-        #add spatial coordinates to obsm of spatial data 
-        coords = [[x,y] for x,y in zip(adata_sp.obs[x].values,adata_sp.obs[y].values)]
-        adata_sp.obsm['spatial'] = np.array(coords)
-    
-    if 'spatial' not in adata_sp.uns.keys() and spot_size == None and scale_factor == None:
-        raise ValueError("Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist")
-    
-    #REVIEW
-    if 'spatial' in adata_sp.uns.keys() and spot_size != None and scale_factor != None:
-        raise ValueError("Spot Size and Scale Factor should be None when ad_sp.uns['spatial'] exists")
-    
+
+    # non visium data
+    if spatial_key not in adata_sp.obsm.keys():
+        # add spatial coordinates to obsm of spatial data
+        coords = [
+            [x, y] for x, y in zip(adata_sp.obs[x].values, adata_sp.obs[y].values)
+        ]
+        adata_sp.obsm["spatial"] = np.array(coords)
+
+    if (
+        "spatial" not in adata_sp.uns.keys()
+        and spot_size == None
+        and scale_factor == None
+    ):
+        raise ValueError(
+            "Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist"
+        )
+
+    # REVIEW
+    if "spatial" in adata_sp.uns.keys() and spot_size != None and scale_factor != None:
+        raise ValueError(
+            "Spot Size and Scale Factor should be None when ad_sp.uns['spatial'] exists"
+        )
+
     sc.pl.spatial(
-        adata_sp, color=annotation_list, cmap="viridis", show=False, frameon=False, spot_size=spot_size,
-        scale_factor=scale_factor, alpha_img=alpha_img, bw=bw, ax=ax
+        adata_sp,
+        color=annotation_list,
+        cmap="viridis",
+        show=False,
+        frameon=False,
+        spot_size=spot_size,
+        scale_factor=scale_factor,
+        alpha_img=alpha_img,
+        bw=bw,
+        ax=ax,
     )
 
     adata_sp.obs.drop(annotation_list, inplace=True, errors="ignore", axis=1)
@@ -268,7 +286,10 @@ def plot_cell_annotation(
     fig.subplots_adjust(top=0.5)
 
     cmap = plt.get_cmap(cmap)
-    norm = mpl.colors.Normalize(vmin=0, vmax=1,)
+    norm = mpl.colors.Normalize(
+        vmin=0,
+        vmax=1,
+    )
 
     cb1 = mpl.colorbar.ColorbarBase(
         ax, cmap=cmap, norm=norm, orientation="horizontal", label="Probability"
@@ -314,29 +335,38 @@ def plot_cell_annotation(
 
 
 def plot_genes_sc(
-    genes, 
-    adata_measured, 
+    genes,
+    adata_measured,
     adata_predicted,
+    spatial_key: str | None = "spatial",
     x="x",
-    y = "y",
-    spot_size=None, 
-    scale_factor=None, 
-    cmap="inferno", 
+    y="y",
+    spot_size=None,
+    scale_factor=None,
+    cmap="inferno",
     perc=0,
     alpha_img=1.0,
     bw=False,
-    return_figure=False
+    return_figure=False,
+    lower_gene_names: bool = False,
 ):
+    if isinstance(genes, str):
+        _genes = [genes]
+    else:
+        _genes = genes
+
+    if lower_gene_names:
+        _genes = [g.lower() for g in _genes]
 
     # remove df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
@@ -353,13 +383,13 @@ def plot_genes_sc(
 
     # remove previous df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
@@ -367,39 +397,53 @@ def plot_genes_sc(
 
     # construct df_plot
     data = []
-    for ix, gene in enumerate(genes):
+    for ix, gene in enumerate(_genes):
         if gene not in adata_measured.var.index:
             data.append(np.zeros_like(np.array(adata_measured[:, 0].X).flatten()))
         else:
             data.append(np.array(adata_measured[:, gene].X).flatten())
 
     df = pd.DataFrame(
-        data=np.array(data).T, columns=genes, index=adata_measured.obs.index,
+        data=np.array(data).T,
+        columns=_genes,
+        index=adata_measured.obs.index,
     )
     construct_obs_plot(df, adata_measured, suffix="measured")
 
     df = pd.DataFrame(
-        data=np.array(adata_predicted[:, genes].X),
-        columns=genes,
+        data=np.array(adata_predicted[:, _genes].X),
+        columns=_genes,
         index=adata_predicted.obs.index,
     )
     construct_obs_plot(df, adata_predicted, perc=perc, suffix="predicted")
 
-    fig = plt.figure(figsize=(7, len(genes) * 3.5))
-    gs = GridSpec(len(genes), 2, figure=fig)
-    
-    #non visium data
-    if 'spatial' not in adata_measured.obsm.keys():
-        #add spatial coordinates to obsm of spatial data 
-        coords = [[x,y] for x,y in zip(adata_measured.obs[x].values,adata_measured.obs[y].values)]
-        adata_measured.obsm['spatial'] = np.array(coords)
-        coords = [[x,y] for x,y in zip(adata_predicted.obs[x].values,adata_predicted.obs[y].values)]
-        adata_predicted.obsm['spatial'] = np.array(coords)
+    fig = plt.figure(figsize=(7, len(_genes) * 3.5))
+    gs = GridSpec(len(_genes), 2, figure=fig)
 
-    if ("spatial" not in adata_measured.uns.keys()) and (spot_size==None and scale_factor==None):
-        raise ValueError("Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist")
-        
-    for ix, gene in enumerate(genes):
+    # non visium data
+    if spatial_key not in adata_measured.obsm.keys():
+        # add spatial coordinates to obsm of spatial data
+        coords = [
+            [x, y]
+            for x, y in zip(adata_measured.obs[x].values, adata_measured.obs[y].values)
+        ]
+        adata_measured.obsm["spatial"] = np.array(coords)
+        coords = [
+            [x, y]
+            for x, y in zip(
+                adata_predicted.obs[x].values, adata_predicted.obs[y].values
+            )
+        ]
+        adata_predicted.obsm["spatial"] = np.array(coords)
+
+    if ("spatial" not in adata_measured.uns.keys()) and (
+        spot_size == None and scale_factor == None
+    ):
+        raise ValueError(
+            "Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist"
+        )
+
+    for ix, gene in enumerate(_genes):
         ax_m = fig.add_subplot(gs[ix, 0])
         sc.pl.spatial(
             adata_measured,
@@ -411,7 +455,7 @@ def plot_genes_sc(
             show=False,
             cmap=cmap,
             alpha_img=alpha_img,
-            bw=bw
+            bw=bw,
         )
         ax_p = fig.add_subplot(gs[ix, 1])
         sc.pl.spatial(
@@ -424,26 +468,23 @@ def plot_genes_sc(
             show=False,
             cmap=cmap,
             alpha_img=alpha_img,
-            bw=bw
+            bw=bw,
         )
-        
-    #     sc.pl.spatial(adata_measured, color=['{} (measured)'.format(gene) for gene in genes], frameon=False)
-    #     sc.pl.spatial(adata_predicted, color=['{} (predicted)'.format(gene) for gene in genes], frameon=False)
 
     # remove df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
-    if return_figure==True:
+    if return_figure == True:
         return fig
 
 
@@ -500,7 +541,10 @@ def plot_genes(
     fig.subplots_adjust(top=0.5)
 
     cmap = plt.get_cmap(cmap)
-    norm = mpl.colors.Normalize(vmin=0, vmax=1,)
+    norm = mpl.colors.Normalize(
+        vmin=0,
+        vmax=1,
+    )
 
     cb1 = mpl.colorbar.ColorbarBase(
         ax, cmap=cmap, norm=norm, orientation="horizontal", label="Expression Level"
@@ -516,7 +560,9 @@ def plot_genes(
             vs = np.array(adata_measured[:, gene].X).flatten()
 
         xs, ys, vs = ordered_predictions(
-            adata_measured.obs[x], adata_measured.obs[y], vs,
+            adata_measured.obs[x],
+            adata_measured.obs[y],
+            vs,
         )
 
         if log:
@@ -554,7 +600,7 @@ def quick_plot_gene(
 ):
     """
     Utility function to quickly plot a gene in a AnnData structure ordered by intensity of the gene signal.
-    
+
     Args:
         gene (str): Gene name.
         adata (AnnData): spot-by-gene spatial data.
@@ -609,9 +655,9 @@ def plot_annotation_entropy(adata_map, annotation="cell_type"):
 def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     """
     Plots gene level test scores with each gene's sparsity for mapping result.
-    
+
     Args:
-        df_gene_score (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp, adata_sc); 
+        df_gene_score (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp, adata_sc);
                        with "gene names" as the index and "score", "sparsity_sc", "sparsity_sp", "sparsity_diff" as the columns
         bins (int or string): Optional. Default is 10.
         alpha (float): Optional. Ranges from 0-1, and controls the opacity. Default is 0.7.
@@ -658,40 +704,40 @@ def plot_test_scores(df_gene_score, bins=10, alpha=0.7):
     )
     plt.tight_layout()
 
-    
+
 def plot_auc(df_all_genes, test_genes=None):
     """
         Plots auc curve which is used to evaluate model performance.
-    
+
     Args:
-        df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp); 
+        df_all_genes (Pandas dataframe): returned by compare_spatial_geneexp(adata_ge, adata_sp);
         test_genes (list): list of test genes, if not given, test_genes will be set to genes where 'is_training' field is False
 
     Returns:
         None
     """
     metric_dict, ((pol_xs, pol_ys), (xs, ys)) = ut.eval_metric(df_all_genes, test_genes)
-    
+
     fig = plt.figure()
     plt.figure(figsize=(6, 5))
 
-    plt.plot(pol_xs, pol_ys, c='r')
-    sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
-        
+    plt.plot(pol_xs, pol_ys, c="r")
+    sns.scatterplot(xs, ys, alpha=0.5, edgecolors="face")
+
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
-    plt.gca().set_aspect(.5)
-    plt.xlabel('score')
-    plt.ylabel('spatial sparsity')
-    plt.tick_params(axis='both', labelsize=8)
-    plt.title('Prediction on test transcriptome')
-    
-    textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
-    # place a text box in upper left in axes coords
-    plt.text(0.03, 0.1, textstr, fontsize=11, verticalalignment='top', bbox=props);
+    plt.gca().set_aspect(0.5)
+    plt.xlabel("score")
+    plt.ylabel("spatial sparsity")
+    plt.tick_params(axis="both", labelsize=8)
+    plt.title("Prediction on test transcriptome")
 
-    
+    textstr = "auc_score={}".format(np.round(metric_dict["auc_score"], 3))
+    props = dict(boxstyle="round", facecolor="wheat", alpha=0.3)
+    # place a text box in upper left in axes coords
+    plt.text(0.03, 0.1, textstr, fontsize=11, verticalalignment="top", bbox=props)
+
+
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
     "L6 CT": (0.19215686274509805, 0.5098039215686274, 0.7411764705882353),
