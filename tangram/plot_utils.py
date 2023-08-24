@@ -2,7 +2,7 @@
 This module includes plotting utility functions.
 """
 import logging
-from collections.abc import Collection
+from collections.abc import Sequence
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -338,6 +338,7 @@ def plot_genes_sc(
     genes,
     adata_measured,
     adata_predicted,
+    spatial_key: str | None = "spatial",
     x="x",
     y="y",
     spot_size=None,
@@ -348,20 +349,20 @@ def plot_genes_sc(
     bw=False,
     return_figure=False,
 ):
-
-    if not isinstance(genes,Collection):
-        genes = [genes]
-
+    if isinstance(genes, str):
+        _genes = [genes]
+    else:
+        _genes = genes
 
     # remove df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
@@ -378,13 +379,13 @@ def plot_genes_sc(
 
     # remove previous df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
@@ -392,7 +393,7 @@ def plot_genes_sc(
 
     # construct df_plot
     data = []
-    for ix, gene in enumerate(genes):
+    for ix, gene in enumerate(_genes):
         if gene not in adata_measured.var.index:
             data.append(np.zeros_like(np.array(adata_measured[:, 0].X).flatten()))
         else:
@@ -400,23 +401,23 @@ def plot_genes_sc(
 
     df = pd.DataFrame(
         data=np.array(data).T,
-        columns=genes,
+        columns=_genes,
         index=adata_measured.obs.index,
     )
     construct_obs_plot(df, adata_measured, suffix="measured")
 
     df = pd.DataFrame(
-        data=np.array(adata_predicted[:, genes].X),
-        columns=genes,
+        data=np.array(adata_predicted[:, _genes].X),
+        columns=_genes,
         index=adata_predicted.obs.index,
     )
     construct_obs_plot(df, adata_predicted, perc=perc, suffix="predicted")
 
-    fig = plt.figure(figsize=(7, len(genes) * 3.5))
-    gs = GridSpec(len(genes), 2, figure=fig)
+    fig = plt.figure(figsize=(7, len(_genes) * 3.5))
+    gs = GridSpec(len(_genes), 2, figure=fig)
 
     # non visium data
-    if "spatial" not in adata_measured.obsm.keys():
+    if spatial_key not in adata_measured.obsm.keys():
         # add spatial coordinates to obsm of spatial data
         coords = [
             [x, y]
@@ -438,7 +439,7 @@ def plot_genes_sc(
             "Spot Size and Scale Factor cannot be None when ad_sp.uns['spatial'] does not exist"
         )
 
-    for ix, gene in enumerate(genes):
+    for ix, gene in enumerate(_genes):
         ax_m = fig.add_subplot(gs[ix, 0])
         sc.pl.spatial(
             adata_measured,
@@ -466,18 +467,15 @@ def plot_genes_sc(
             bw=bw,
         )
 
-    #     sc.pl.spatial(adata_measured, color=['{} (measured)'.format(gene) for gene in genes], frameon=False)
-    #     sc.pl.spatial(adata_predicted, color=['{} (predicted)'.format(gene) for gene in genes], frameon=False)
-
     # remove df_plot in obs
     adata_measured.obs.drop(
-        ["{} (measured)".format(gene) for gene in genes],
+        ["{} (measured)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,
     )
     adata_predicted.obs.drop(
-        ["{} (predicted)".format(gene) for gene in genes],
+        ["{} (predicted)".format(gene) for gene in _genes],
         inplace=True,
         errors="ignore",
         axis=1,

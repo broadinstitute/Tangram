@@ -17,6 +17,7 @@ import logging
 import warnings
 
 from sklearn.metrics import auc
+from numba import njit
 
 # import torch
 # from torch.nn.functional import cosine_similarity
