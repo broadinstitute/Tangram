@@ -355,10 +355,7 @@ def map_cells_to_space(
 
     # Annotate cosine similarity of each training gene
     G_predicted = adata_map.X.T @ S
-    cos_sims = []
-    for v1, v2 in zip(G.T, G_predicted.T):
-        norm_sq = np.linalg.norm(v1) * np.linalg.norm(v2)
-        cos_sims.append((v1 @ v2) / norm_sq)
+    cos_sims = ut.mat_cosine_similarity(G,G_predicted)
 
     df_cs = pd.DataFrame(cos_sims, training_genes, columns=["train_score"])
     df_cs = df_cs.sort_values(by="train_score", ascending=False)

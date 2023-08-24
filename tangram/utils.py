@@ -819,3 +819,14 @@ def df_to_cell_types(df, cell_types):
             end_ind = j[i]
             cell_types_mapped[i].extend(j["centroids"][start_ind:end_ind].tolist())
     return cell_types_mapped
+
+
+@njit
+def mat_cosine_similarity(V1,V2, axis = 0):
+    n_1 = np.sum(V1 * V1,axis = axis) ** 0.5
+    n_2 = np.sum(V2 * V2,axis = axis) ** 0.5
+    norms_sq = n_1 * n_2
+    ewise = V1 * V2
+    dot_unorm = np.sum(ewise,axis =axis)
+    cs = dot_unorm / norms_sq
+    return cs
