@@ -338,7 +338,7 @@ def deconvolve_cell_annotations(adata_sp, filter_cell_annotation=None):
     return adata_segment
 
 
-def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
+def project_genes(adata_map, adata_sc, cluster_label=None, scale=True, min_cells=1):
     """
     Transfer gene expression from the single cell onto space.
 
@@ -359,7 +359,7 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     adata_sc.var_names_make_unique()
 
     # remove all-zero-valued genes
-    sc.pp.filter_genes(adata_sc, min_cells=1)
+    sc.pp.filter_genes(adata_sc, min_cells=min_cells)
 
     if cluster_label:
         adata_sc = mu.adata_to_cluster_expression(adata_sc, cluster_label, scale=scale)
