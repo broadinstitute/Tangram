@@ -19,7 +19,7 @@ from . import utils as ut
 logging.getLogger().setLevel(logging.INFO)
 
 
-def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
+def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True, min_cells=1):
     """
     Pre-process AnnDatas so that they can be mapped. Specifically:
     - Remove genes that all entries are zero
@@ -37,8 +37,8 @@ def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
     """
 
     # remove all-zero-valued genes
-    sc.pp.filter_genes(adata_sc, min_cells=1)
-    sc.pp.filter_genes(adata_sp, min_cells=1)
+    sc.pp.filter_genes(adata_sc, min_cells=min_cells)
+    sc.pp.filter_genes(adata_sp, min_cells=min_cells)
 
     if genes is None:
         # Use all genes
