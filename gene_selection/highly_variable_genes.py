@@ -1,3 +1,7 @@
+"""
+Highly variable gene selection.
+"""
+
 import scanpy as sc
 
 def hvg(adata_sc):

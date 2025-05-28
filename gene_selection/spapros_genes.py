@@ -1,4 +1,9 @@
-# install Spapros via https://github.com/theislab/spapros
+"""
+Spapros gene selection.
+
+Installation:
+    Spapros via https://github.com/theislab/spapros
+"""
 
 import spapros as sp
 

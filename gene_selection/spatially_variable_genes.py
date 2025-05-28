@@ -1,4 +1,10 @@
-# install SpatialDE2 via https://github.com/PMBio/SpatialDE
+"""
+Spatially variable gene selection.
+
+Installation:
+    SpatialDE2 via https://github.com/PMBio/SpatialDE
+"""
+
 import sys
 sys.path.insert(1, '../../SpatialDE')
 

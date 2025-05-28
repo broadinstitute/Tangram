@@ -10,7 +10,6 @@ import numpy as np
 import logging
 import torch
 from torch.nn.functional import softmax, cosine_similarity
-from sklearn.metrics import auc
 
 class Mapper:
     """
@@ -105,7 +104,7 @@ class Mapper:
         self.source_density_enabled = d_source is not None
         if self.source_density_enabled:
             self.d_source = torch.tensor(d_source, device=device, dtype=torch.float32)
-        
+
         self._density_criterion = torch.nn.KLDivLoss(reduction="sum")
 
         self.lambda_d = lambda_d
@@ -118,23 +117,23 @@ class Mapper:
 
         self.lambda_neighborhood_g1 = lambda_neighborhood_g1
         self.voxel_weights = voxel_weights
-        if self.voxel_weights is not None: 
+        if self.voxel_weights is not None:
             self.voxel_weights = torch.tensor(voxel_weights, device=device, dtype=torch.float32)
         else:
             self.voxel_weights = torch.zeros((self.G_train.shape[0],self.G_train.shape[0]), device=device, dtype=torch.float32)
 
         self.lambda_ct_islands = lambda_ct_islands
         self.neighborhood_filter = neighborhood_filter
-        if self.neighborhood_filter is not None: 
+        if self.neighborhood_filter is not None:
             self.neighborhood_filter = torch.tensor(neighborhood_filter, device=device, dtype=torch.float32)
         self.ct_encode = ct_encode
-        if self.ct_encode is not None: 
+        if self.ct_encode is not None:
             self.ct_encode = torch.tensor(ct_encode, device=device, dtype=torch.float32)
 
         self.spatial_weights = spatial_weights
         if self.spatial_weights is not None:
             self.spatial_weights = torch.tensor(spatial_weights, device=device, dtype=torch.float32)
-        
+
         self.lambda_getis_ord = lambda_getis_ord
         if self.lambda_getis_ord > 0:
             self.G_star = (self.spatial_weights @ self.G_train) / self.G_train.sum(axis=0)
@@ -147,7 +146,7 @@ class Mapper:
             self.moran_I = (self.G_train.shape[0] * z * (self.spatial_weights @ z)) / (z * z).sum(axis=0)
         else:
             self.moran_I = torch.zeros_like(self.G_train, device=device, dtype=torch.float32)
-        
+
         self.lambda_geary = lambda_geary
         if self.lambda_geary > 0:
             m2 = ((self.G_train - self.G_train.mean(axis=0)) ** 2).sum(axis=0) / (self.G_train.shape[0] - 1)
@@ -183,7 +182,7 @@ class Mapper:
         """
         G = self.G_train
         S = self.S_train
-        
+
         M_probs = softmax(self.M, dim=1)
 
         if self.target_density_enabled and self.source_density_enabled:
@@ -208,13 +207,13 @@ class Mapper:
         gene_sparsity = mask.sum(axis=0) / G.shape[0]
         gene_sparsity = 1 - gene_sparsity.reshape((-1,))
         sp_sparsity_weighted_score = self.lambda_sparsity_g1 * ((cosine_similarity(G_pred, G, dim=0) * (1-gene_sparsity)) / (1-gene_sparsity).sum()).sum()
-        
+
         vg_term = self.lambda_g2 * cosine_similarity(G_pred, G, dim=1).mean()
 
         expression_term = gv_term + gv_neighborhood_term + vg_term + sp_sparsity_weighted_score
 
         regularizer_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
-        l1_regularizer_term = self.lambda_l1 * self.M.abs().sum() 
+        l1_regularizer_term = self.lambda_l1 * self.M.abs().sum()
         l2_regularizer_term = self.lambda_l2 * (self.M ** 2).sum()
 
         main_loss = (gv_term / self.lambda_g1).tolist()
@@ -236,8 +235,8 @@ class Mapper:
 
         if self.lambda_ct_islands > 0:
             ct_map = (M_probs.T @ self.ct_encode)
-            ct_island_penalty = self.lambda_ct_islands * (torch.max((ct_map) - (self.neighborhood_filter @ ct_map), 
-                                                        torch.tensor([0], dtype=torch.float32, device=self.device)).mean())
+            ct_island_penalty = self.lambda_ct_islands * (torch.max((ct_map) - (self.neighborhood_filter @ ct_map),
+                                                                    torch.tensor([0], dtype=torch.float32, device=self.device)).mean())
             ct_island_penalty_report = (ct_island_penalty / self.lambda_ct_islands).tolist()
         else:
             ct_island_penalty = 0
@@ -271,8 +270,8 @@ class Mapper:
             gearys_C_sim = 0
             gearys_C_sim_report = np.nan
 
-        total_loss = -expression_term - regularizer_term 
-        total_loss += l1_regularizer_term 
+        total_loss = -expression_term - regularizer_term
+        total_loss += l1_regularizer_term
         total_loss += l2_regularizer_term
         if density_term is not None:
             total_loss += density_term
@@ -282,11 +281,11 @@ class Mapper:
         total_loss -= gearys_C_sim
 
         if verbose:
-            term_numbers = [main_loss, vg_reg, kl_reg, 
-                            entropy_reg, l1_reg, l2_reg, 
+            term_numbers = [main_loss, vg_reg, kl_reg,
+                            entropy_reg, l1_reg, l2_reg,
                             gv_neighborhood, ct_island_penalty_report, G_star_sim_report, moran_I_sim_report, gearys_C_sim_report]
-            term_names = ["Gene-voxel score", "Voxel-gene score", "Cell densities reg", 
-                          "Entropy reg", "L1 reg", "L2 reg", 
+            term_names = ["Gene-voxel score", "Voxel-gene score", "Cell densities reg",
+                          "Entropy reg", "L1 reg", "L2 reg",
                           "Spatial weighted score", "Cell type islands score", "Getis-Ord G* score", "Moran\'s I score", "Geary\'s C score"]
 
             d = dict(zip(term_names, term_numbers))
@@ -309,62 +308,31 @@ class Mapper:
                 density_term, gene-voxel similarity term, voxel-gene similarity term. Default is True.
 
         Returns:
-            Tuple of 5 Floats: total_loss, gene_score, sp_sparsity_weighted_score, auc_score, prob_entropy
+            Tuple of 5 Floats: total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy
         """
 
         G = self.G_val
         S = self.S_val
-        
+
         M_probs = softmax(self.M, dim=1)
         G_pred = torch.matmul(M_probs.t(), S)
-        
+
         gv_scores = cosine_similarity(G_pred, G, dim=0)
         vg_scores = cosine_similarity(G_pred, G, dim=1)
 
         total_loss = (gv_scores.mean() + vg_scores.mean()).tolist()
         gene_score = gv_scores.mean().tolist()
-        
+
         mask = G != 0
         gene_sparsity = mask.sum(axis=0) / G.shape[0]
         gene_sparsity = 1 - gene_sparsity.reshape((-1,))
         sp_sparsity_weighted_score = ((gv_scores * (1-gene_sparsity)) / (1-gene_sparsity).sum()).sum().tolist()
 
-        xs = list(gv_scores.clone().detach().cpu().numpy())
-        ys = list(gene_sparsity.clone().detach().cpu().numpy())
-        pol_deg = 2
-        pol_cs = np.polyfit(xs, ys, pol_deg)  # polynomial coefficients
-        pol_xs = np.linspace(0, 1, 10)  # x linearly spaced
-        pol = np.poly1d(pol_cs)  # build polynomial as function
-        pol_ys = [pol(x) for x in pol_xs]  # compute polys
-        if pol_ys[0] > 1:
-            pol_ys[0] = 1
-        # if real root when y = 0, add point (x, 0):
-        roots = pol.r
-        root = None
-        for i in range(len(roots)):
-            if np.isreal(roots[i]) and roots[i] <= 1 and roots[i] >= 0:
-                root = roots[i]
-                break
-        if root is not None:
-            pol_xs = np.append(pol_xs, root)
-            pol_ys = np.append(pol_ys, 0)       
-        np.append(pol_xs, 1)
-        np.append(pol_ys, pol(1))
-        # remove point that are out of [0,1]
-        del_idx = []
-        for i in range(len(pol_xs)):
-            if pol_xs[i] < 0 or pol_ys[i] < 0 or pol_xs[i] > 1 or pol_ys[i] > 1:
-                del_idx.append(i)
-        pol_xs = [x for x in pol_xs if list(pol_xs).index(x) not in del_idx]
-        pol_ys = [y for y in pol_ys if list(pol_ys).index(y) not in del_idx]
-        # Compute are under the curve of polynomial
-        auc_score = np.real(auc(pol_xs, pol_ys)).tolist()
-
         prob_entropy = -((torch.log(M_probs) * M_probs).sum(axis=1) / np.log(M_probs.shape[1])).mean().tolist()
 
         if verbose:
-            term_numbers = [total_loss, gene_score, sp_sparsity_weighted_score, auc_score, prob_entropy]
-            term_names = ["total_loss", "gene_score", "sp_sparsity_weighted_score", "auc_score", "prob_entropy"]
+            term_numbers = [total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy]
+            term_names = ["total_loss", "gene_score", "sp_sparsity_weighted_score", "prob_entropy"]
 
             d = dict(zip(term_names, term_numbers))
             clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
@@ -375,7 +343,7 @@ class Mapper:
 
             print(str(msg).replace("[", "").replace("]", "").replace("'", ""))
 
-        return total_loss, gene_score, sp_sparsity_weighted_score, auc_score, prob_entropy
+        return total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy
 
     def train(self, num_epochs, learning_rate=0.1, print_each=100, val_each=None):
         """
@@ -401,7 +369,7 @@ class Mapper:
             logging.info(f"Printing scores every {print_each} epochs.")
 
         keys = ["total_loss", "main_loss", "vg_reg", "kl_reg", "entropy_reg"]
-        val_keys = ["val_total_loss", "val_gene_score", "val_sp_sparsity_weighted_score", "val_auc_score", "val_prob_entropy"]
+        val_keys = ["val_total_loss", "val_gene_score", "val_sp_sparsity_weighted_score", "val_prob_entropy"]
         training_history = {key: [] for key in keys + val_keys}
 
         for t in range(num_epochs):
