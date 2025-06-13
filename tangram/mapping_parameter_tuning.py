@@ -128,7 +128,7 @@ def train_multiple_Mapper(config,data):
             num_epochs=num_epochs
         )
         mapping_matrices.append(mapping_matrix)
-        val_gene_scores.append(training_history["val_gene_score"][-1])
+        val_gene_scores.append(training_history["val_gene_sim"][-1])
 
     cell_mapping_cube = np.array(mapping_matrices)
     gene_expr_cube = np.array([(S[:,val_genes_idx].T @ mapping_matrix) for mapping_matrix in mapping_matrices])
@@ -161,8 +161,6 @@ def mapping_hyperparameter_tuning(
         tuner_num_samples (int): Optional. Number of search space samples during optimization. Default is 2000.
         cv_train_genes (list): Optional. Training gene list. Default is None.
         cv_val_genes (list): Optional. Validation gene list. Default is None.
-        train_genes_idx (ndarray): Optional. Gene indices used for training from the training gene list.
-        val_genes_idx (ndarray): Optional. Gene indices used for validation from the training gene list.
         cluster_label (str): Optional. Field in `adata_sc.obs` used for aggregating single cell data. Only valid for `mode=clusters`.
         device (string or torch.device): Optional. Default is 'cpu'.
         density_prior (str, ndarray or None): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If None, the density term is ignored. Default value is 'rna_count_based'.

@@ -5,7 +5,6 @@
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import squidpy as sq
 import torch
 import logging
 
@@ -97,6 +96,7 @@ def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
         logging.info(
             f"Spatial neighborhood matrices for the neighborhood extensions are calculated and saved in `obsp``spatial_connectivities` and `spatial_distances` of the spatial Anndata."
         )
+        import squidpy as sq
         sq.gr.spatial_neighbors(adata_sp, set_diag=False)
         
 
@@ -157,7 +157,6 @@ def map_cells_to_space(
     lambda_count=1,
     lambda_f_reg=1,
     target_count=None,
-    lambda_sparsity_g1=0,
     lambda_neighborhood_g1=0,
     lambda_ct_islands=0,
     lambda_getis_ord=0,
@@ -189,12 +188,11 @@ def map_cells_to_space(
         lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
         lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
         target_count (int): Optional. The number of cells to be filtered. Default is None.
-        lambda_sparsity_g1 (float): Optional. Strength of sparsity weighted gene expression comparison. Default is 0.
         lambda_neighborhood_g1 (float): Optional. Strength of neighborhood weighted gene expression comparison. Default is 0.
+        lambda_ct_islands: Optional. Strength of ct islands enforcement. Default is 0.
         lambda_getis_ord (float): Optional. Strength of Getis-Ord G* preservation. Default is 0.
         lambda_geary (float): Optional. Strength of Geary's C preservation. Default is 0.
         lambda_moran (float): Optional. Strength of Moran's I preservation. Default is 0.
-        lambda_ct_islands: Optional. Strength of ct islands enforcement. Default is 0.
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is True.
         density_prior (str, ndarray or None): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If None, the density term is ignored. Default value is 'rna_count_based'.
@@ -338,7 +336,6 @@ def map_cells_to_space(
             "lambda_l1": lambda_l1,
             "lambda_l2": lambda_l2,
             "d_source": d_source,
-            "lambda_sparsity_g1": lambda_sparsity_g1,
             "lambda_neighborhood_g1": lambda_neighborhood_g1,
             "voxel_weights": voxel_weights,
             "lambda_ct_islands": lambda_ct_islands,

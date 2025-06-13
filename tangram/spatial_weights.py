@@ -2,14 +2,14 @@
 Function to compute spatial weights for the neighborhood extensions.
 """
 
-import collections
-import sklearn
-import libpysal
-import numpy as np
-
 def spatial_weights(adata_sp, standardized, self_inclusion):
+    import collections
+    import sklearn
+    import libpysal
+    import numpy as np
+
     if not set(["spatial_connectivities", "spatial_distances"]).issubset(set(adata_sp.obsp.keys())):
-        raise ValueError("Missing spatial neighborhood parameters. Run `sq.gr.spatial_neighbors(adata_sp)`.")
+        raise ValueError("Missing spatial neighborhood parameters. Run `pp_adatas()` with the spatial information stored in `spatial` in `adata_sp.obsm`.")
 
     if standardized:
         w = adata_sp.obsp['spatial_connectivities'].copy().toarray()

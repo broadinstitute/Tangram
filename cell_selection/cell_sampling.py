@@ -5,9 +5,6 @@ Installation:
     CytoSPACE via https://github.com/digitalcytometry/cytospace
 """
 
-import sys
-sys.path.insert(1, '../../cytospace')
-
 import cytospace
 import numpy as np
 import pandas as pd

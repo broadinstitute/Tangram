@@ -30,7 +30,6 @@ class Mapper:
         lambda_r=0,
         lambda_l1=0,
         lambda_l2=0,
-        lambda_sparsity_g1=0,
         lambda_neighborhood_g1=0,
         voxel_weights=None,
         lambda_getis_ord=0,
@@ -65,7 +64,6 @@ class Mapper:
                               lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
             lambda_l1 (float): Optional. Strength of L1 regularizer. Default is 0.
             lambda_l2 (float): Optional. Strength of L2 regularizer. Default is 0.
-            lambda_sparsity_g1 (float): Optional. Strength of sparsity weighted gene expression comparison. Default is 0.
             lambda_neighborhood_g1 (float): Optional. Strength of neighborhood weighted gene expression comparison. Default is 0.
             voxel_weights (ndarray): Optional. Spatial weight used for neighborhood weighting, shape = (number_spots, number_spots).
             lambda_getis_ord (float): Optional. Strength of Getis-Ord G* preservation. Default is 0.
@@ -80,23 +78,39 @@ class Mapper:
             random_state (int): Optional. pass an int to reproduce training. Default is None.
         """
         self.device = device
+        self.random_state = random_state
 
-        self.S_all = torch.tensor(S, device=device, dtype=torch.float32)
-        self.G_all = torch.tensor(G, device=device, dtype=torch.float32)
+        self.S = torch.tensor(S, device=device, dtype=torch.float32)
+        self.G = torch.tensor(G, device=device, dtype=torch.float32)
 
+        # setup training and validation data
         if train_genes_idx is not None:
-            self.S_train = self.S_all[:,train_genes_idx].clone()
-            self.G_train = self.G_all[:,train_genes_idx].clone()
+            self.S_train = self.S[:, train_genes_idx].clone()
+            self.G_train = self.G[:, train_genes_idx].clone()
         else:
-            self.S_train = self.S_all.clone()
-            self.G_train = self.G_all.clone()
+            self.S_train = self.S.clone()
+            self.G_train = self.G.clone()
         if val_genes_idx is not None:
-            self.S_val = self.S_all[:,val_genes_idx].clone()
-            self.G_val = self.G_all[:,val_genes_idx].clone()
+            self.S_val = self.S[:, val_genes_idx].clone()
+            self.G_val = self.G[:, val_genes_idx].clone()
         else:
-            self.S_val = None
-            self.G_val = None
+            self.S_val = self.S.clone()
+            self.G_val = self.G.clone()
+        
+        # loss weights
+        self.lambda_d = lambda_d
+        self.lambda_g1 = lambda_g1
+        self.lambda_g2 = lambda_g2
+        self.lambda_r = lambda_r
+        self.lambda_l1 = lambda_l1
+        self.lambda_l2 = lambda_l2
+        self.lambda_neighborhood_g1 = lambda_neighborhood_g1
+        self.lambda_ct_islands = lambda_ct_islands
+        self.lambda_getis_ord = lambda_getis_ord
+        self.lambda_geary = lambda_geary
+        self.lambda_moran = lambda_moran
 
+        # density terms
         self.target_density_enabled = d is not None
         if self.target_density_enabled:
             self.d = torch.tensor(d, device=device, dtype=torch.float32)
@@ -104,60 +118,32 @@ class Mapper:
         self.source_density_enabled = d_source is not None
         if self.source_density_enabled:
             self.d_source = torch.tensor(d_source, device=device, dtype=torch.float32)
-
+        
         self._density_criterion = torch.nn.KLDivLoss(reduction="sum")
 
-        self.lambda_d = lambda_d
-        self.lambda_g1 = lambda_g1
-        self.lambda_sparsity_g1 = lambda_sparsity_g1
-        self.lambda_g2 = lambda_g2
-        self.lambda_r = lambda_r
-        self.lambda_l1 = lambda_l1
-        self.lambda_l2 = lambda_l2
-
-        self.lambda_neighborhood_g1 = lambda_neighborhood_g1
+        # spatial weights for neighborhood weighting 
         self.voxel_weights = voxel_weights
         if self.voxel_weights is not None:
             self.voxel_weights = torch.tensor(voxel_weights, device=device, dtype=torch.float32)
-        else:
-            self.voxel_weights = torch.zeros((self.G_train.shape[0],self.G_train.shape[0]), device=device, dtype=torch.float32)
-
-        self.lambda_ct_islands = lambda_ct_islands
+       
+        # cell type islands
         self.neighborhood_filter = neighborhood_filter
         if self.neighborhood_filter is not None:
             self.neighborhood_filter = torch.tensor(neighborhood_filter, device=device, dtype=torch.float32)
+        
         self.ct_encode = ct_encode
         if self.ct_encode is not None:
             self.ct_encode = torch.tensor(ct_encode, device=device, dtype=torch.float32)
 
+        # spatial autocorrelation weights
         self.spatial_weights = spatial_weights
         if self.spatial_weights is not None:
             self.spatial_weights = torch.tensor(spatial_weights, device=device, dtype=torch.float32)
 
-        self.lambda_getis_ord = lambda_getis_ord
-        if self.lambda_getis_ord > 0:
-            self.G_star = (self.spatial_weights @ self.G_train) / self.G_train.sum(axis=0)
-        else:
-            self.G_star = torch.zeros_like(self.G_train, device=device, dtype=torch.float32)
+        # precompute spatial local indicators for target preservation
+        self.getis_ord_G_star_ref, self.moran_I_ref, self.gearys_C_ref = self._spatial_local_indicators(self.G_train)
 
-        self.lambda_moran = lambda_moran
-        if self.lambda_moran > 0:
-            z = (self.G_train - self.G_train.mean(axis=0))
-            self.moran_I = (self.G_train.shape[0] * z * (self.spatial_weights @ z)) / (z * z).sum(axis=0)
-        else:
-            self.moran_I = torch.zeros_like(self.G_train, device=device, dtype=torch.float32)
-
-        self.lambda_geary = lambda_geary
-        if self.lambda_geary > 0:
-            m2 = ((self.G_train - self.G_train.mean(axis=0)) ** 2).sum(axis=0) / (self.G_train.shape[0] - 1)
-            G_row_dup = self.G_train[None,:,:].expand(self.G_train.shape[0], self.G_train.shape[0], self.G_train.shape[1])
-            G_col_dup = self.G_train[:,None,:].expand(self.G_train.shape[0], self.G_train.shape[0], self.G_train.shape[1])
-            self.gearys_C = 1 / m2.unsqueeze(1) * torch.diagonal(self.spatial_weights @ ((G_row_dup - G_col_dup) ** 2), 0)
-        else:
-            self.gearys_C = torch.zeros_like(self.G_train, device=device, dtype=torch.float32)
-
-        self.random_state = random_state
-
+        # initialize mapping matrix
         if adata_map is None:
             if self.random_state:
                 np.random.seed(seed=self.random_state)
@@ -169,6 +155,36 @@ class Mapper:
         self.M = torch.tensor(
             self.M, device=device, requires_grad=True, dtype=torch.float32
         )
+
+    def _spatial_local_indicators(self, G):
+        """
+        Compute spatial local indicators for given gene expression matrix.
+
+        Args:
+            G (ndarray): Spatial transcriptomics matrix, shape = (number_spots, number_genes).
+        
+        Returns:
+            Tuple of 3 Arrays: getis_ord_G_star, moran_I, gearys_C
+        """
+        getis_ord_G_star = None
+        if self.lambda_getis_ord > 0:
+            getis_ord_G_star = (self.spatial_weights @ G) / G.sum(axis=0)
+        
+        moran_I = None
+        if self.lambda_moran > 0:
+            z = (G - G.mean(axis=0))
+            moran_I = (G.shape[0] * z * (self.spatial_weights @ z)) / (z * z).sum(axis=0)
+        
+        gearys_C = None
+        if self.lambda_geary > 0:
+            n_spots, n_genes = G.shape
+            m2 = ((G - G.mean(axis=0)) ** 2).sum(axis=0) / (n_spots - 1)
+            G_row_dup = G[None, :, :].expand(n_spots, n_spots, n_genes)
+            G_col_dup = G[:, None, :].expand(n_spots, n_spots, n_genes)
+            weighted_diff_sq = self.spatial_weights.unsqueeze(2) * ((G_row_dup - G_col_dup) ** 2)
+            gearys_C = weighted_diff_sq.sum(dim=(0, 1)) / (2 * m2)
+        
+        return getis_ord_G_star, moran_I, gearys_C
 
     def _loss_fn(self, verbose=True):
         """
@@ -182,111 +198,104 @@ class Mapper:
         """
         G = self.G_train
         S = self.S_train
-
         M_probs = softmax(self.M, dim=1)
-
-        if self.target_density_enabled and self.source_density_enabled:
-            d_pred = torch.log(
-                self.d_source @ M_probs
-            )  # KL wants the log in first argument
-            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
-
-        elif self.target_density_enabled and not self.source_density_enabled:
-            d_pred = torch.log(
-                M_probs.sum(axis=0) / self.M.shape[0]
-            )  # KL wants the log in first argument
-            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
-        else:
-            density_term = None
-
         G_pred = torch.matmul(M_probs.t(), S)
+        
+        # gene expression similarity terms
         gv_term = self.lambda_g1 * cosine_similarity(G_pred, G, dim=0).mean()
-        gv_neighborhood_term = self.lambda_neighborhood_g1 * cosine_similarity(self.voxel_weights @ G_pred, 
-                                                                               self.voxel_weights @ G, dim=0).mean()
-        mask = G != 0
-        gene_sparsity = mask.sum(axis=0) / G.shape[0]
-        gene_sparsity = 1 - gene_sparsity.reshape((-1,))
-        sp_sparsity_weighted_score = self.lambda_sparsity_g1 * ((cosine_similarity(G_pred, G, dim=0) * (1-gene_sparsity)) / (1-gene_sparsity).sum()).sum()
-
         vg_term = self.lambda_g2 * cosine_similarity(G_pred, G, dim=1).mean()
-
-        expression_term = gv_term + gv_neighborhood_term + vg_term + sp_sparsity_weighted_score
-
-        regularizer_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
-        l1_regularizer_term = self.lambda_l1 * self.M.abs().sum()
-        l2_regularizer_term = self.lambda_l2 * (self.M ** 2).sum()
-
+        expression_term = gv_term + vg_term
         main_loss = (gv_term / self.lambda_g1).tolist()
-        gv_neighborhood = (
-            (gv_neighborhood_term / self.lambda_sparsity_g1).tolist()
-            if self.lambda_sparsity_g1 != 0
-            else np.nan
-        )
-        kl_reg = (
-            (density_term / self.lambda_d).tolist()
-            if density_term is not None
-            else np.nan
-        )
         vg_reg = (vg_term / self.lambda_g2).tolist()
+        
+        # density regularization terms
+        if self.target_density_enabled:
+            # KL wants the log in first argument
+            if self.source_density_enabled:
+                d_pred = torch.log(self.d_source @ M_probs)
+            else:
+                d_pred = torch.log(M_probs.sum(dim=0) / self.M.shape[0])
+            density_term = self.lambda_d * self._density_criterion(d_pred, self.d)
+            kl_reg = (density_term / self.lambda_d).tolist()
+        else:
+            density_term, kl_reg = 0, np.nan
+        
+        # entropy regularization terms
+        entropy_term = self.lambda_r * -(torch.log(M_probs) * M_probs).sum()
+        entropy_reg = (entropy_term / self.lambda_r).tolist()
 
-        entropy_reg = (regularizer_term / self.lambda_r).tolist()
-        l1_reg = (l1_regularizer_term / self.lambda_l1).tolist()
-        l2_reg = (l2_regularizer_term / self.lambda_l2).tolist()
+        # l1 and l2 regularization terms
+        l1_term = self.lambda_l1 * self.M.abs().sum()
+        l1_reg = (l1_term / self.lambda_l1).tolist()
+        l2_term = self.lambda_l2 * (self.M ** 2).sum()
+        l2_reg = (l2_term / self.lambda_l2).tolist()
 
+        # spatial neighborhood-based gene expression term
+        if self.lambda_neighborhood_g1 > 0:
+            gv_neighborhood_term = self.lambda_neighborhood_g1 * cosine_similarity(self.voxel_weights @ G_pred, 
+                                                                                   self.voxel_weights @ G, dim=0).mean()
+            gv_neighborhood_sim = (gv_neighborhood_term / self.lambda_neighborhood_g1).tolist()
+        else:
+            gv_neighborhood_term, gv_neighborhood_sim = 0, np.nan
+
+        # cell type island enforcement
         if self.lambda_ct_islands > 0:
             ct_map = (M_probs.T @ self.ct_encode)
-            ct_island_penalty = self.lambda_ct_islands * (torch.max((ct_map) - (self.neighborhood_filter @ ct_map),
-                                                                    torch.tensor([0], dtype=torch.float32, device=self.device)).mean())
-            ct_island_penalty_report = (ct_island_penalty / self.lambda_ct_islands).tolist()
+            ct_island_term = self.lambda_ct_islands * (torch.max((ct_map) - (self.neighborhood_filter @ ct_map),
+                                                                 torch.tensor([0], dtype=torch.float32, device=self.device)).mean())
+            ct_island_penalty = (ct_island_term / self.lambda_ct_islands).tolist()
         else:
-            ct_island_penalty = 0
-            ct_island_penalty_report = np.nan
+            ct_island_term, ct_island_penalty = 0, np.nan
 
+        # spatial autocorrelation metrics
+        getis_ord_G_star_pred, moran_I_pred, gearys_C_pred = self._spatial_local_indicators(G_pred)
+
+        getis_ord_term, moran_term, gearys_term = 0, 0, 0
+        getis_ord_sim, moran_sim, gearys_sim = np.nan, np.nan, np.nan
         if self.lambda_getis_ord > 0:
-            G_star_pred = (self.spatial_weights @ G_pred) / (G_pred.sum(axis=0))
-            G_star_sim = self.lambda_getis_ord * cosine_similarity(self.G_star, G_star_pred, dim=0).mean()
-            G_star_sim_report = (G_star_sim / self.lambda_getis_ord).tolist()
-        else:
-            G_star_sim = 0
-            G_star_sim_report = np.nan
-
+            getis_ord_term = self.lambda_getis_ord * cosine_similarity(self.getis_ord_G_star_ref, getis_ord_G_star_pred, dim=0).mean()
+            getis_ord_sim = (getis_ord_term / self.lambda_getis_ord).tolist()
         if self.lambda_moran > 0:
-            z = (G_pred - G_pred.mean(axis=0))
-            moran_I_pred = (G_pred.shape[0] * z * (self.spatial_weights @ z)) / (z * z).sum(axis=0)
-            moran_I_sim = self.lambda_moran * cosine_similarity(self.moran_I, moran_I_pred, dim=0).mean()
-            moran_I_sim_report = (moran_I_sim / self.lambda_moran).tolist()
-        else:
-            moran_I_sim = 0
-            moran_I_sim_report = np.nan
-
+            moran_term = self.lambda_moran * cosine_similarity(self.moran_I_ref, moran_I_pred, dim=0).mean()
+            moran_sim = (moran_term / self.lambda_moran).tolist()
         if self.lambda_geary > 0:
-            m2 = ((G_pred - G_pred.mean(axis=0)) ** 2).sum(axis=0) / (G_pred.shape[0] - 1)
-            G_row_dup = G_pred[None,:,:].expand(G_pred.shape[0], G_pred.shape[0], G_pred.shape[1])
-            G_col_dup = G_pred[:,None,:].expand(G_pred.shape[0], G_pred.shape[0], G_pred.shape[1])
-            gearys_C_pred = 1 / m2.unsqueeze(1) * torch.diagonal(self.spatial_weights @ ((G_row_dup - G_col_dup) ** 2), 0)
-            gearys_C_sim = self.lambda_geary * cosine_similarity(self.gearys_C, gearys_C_pred, dim=0).mean()
-            gearys_C_sim_report = (gearys_C_sim / self.lambda_geary).tolist()
-        else:
-            gearys_C_sim = 0
-            gearys_C_sim_report = np.nan
+            gearys_term = self.lambda_geary * cosine_similarity(self.gearys_C_ref, gearys_C_pred, dim=0).mean()
+            gearys_sim = (gearys_term / self.lambda_geary).tolist()
 
-        total_loss = -expression_term - regularizer_term
-        total_loss += l1_regularizer_term
-        total_loss += l2_regularizer_term
-        if density_term is not None:
-            total_loss += density_term
-        total_loss += ct_island_penalty
-        total_loss -= G_star_sim
-        total_loss -= moran_I_sim
-        total_loss -= gearys_C_sim
+        # total loss aggregation
+        total_loss = -expression_term \
+                 + density_term + entropy_term \
+                 + l1_term + l2_term \
+                 + ct_island_term - gv_neighborhood_term \
+                 - getis_ord_term - moran_term - gearys_term
 
         if verbose:
-            term_numbers = [main_loss, vg_reg, kl_reg,
-                            entropy_reg, l1_reg, l2_reg,
-                            gv_neighborhood, ct_island_penalty_report, G_star_sim_report, moran_I_sim_report, gearys_C_sim_report]
-            term_names = ["Gene-voxel score", "Voxel-gene score", "Cell densities reg",
-                          "Entropy reg", "L1 reg", "L2 reg",
-                          "Spatial weighted score", "Cell type islands score", "Getis-Ord G* score", "Moran\'s I score", "Geary\'s C score"]
+            term_numbers = [
+                main_loss,
+                vg_reg, 
+                kl_reg, 
+                entropy_reg, 
+                l1_reg, 
+                l2_reg, 
+                gv_neighborhood_sim, 
+                ct_island_penalty, 
+                getis_ord_sim, 
+                moran_sim, 
+                gearys_sim
+            ]
+            term_names = [
+                "Gene-voxel score", 
+                "Voxel-gene score", 
+                "Cell densities reg", 
+                "Entropy reg", 
+                "L1 reg", 
+                "L2 reg",
+                "Spatial weighted score", 
+                "Cell type islands penalty", 
+                "Getis-Ord score", 
+                "Moran score", 
+                "Geary score"
+            ]
 
             d = dict(zip(term_names, term_numbers))
             clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
@@ -301,38 +310,39 @@ class Mapper:
 
     def _val_loss_fn(self, verbose=False):
         """
-        Evaluates the val loss function. Used during hyperparameter tuning.
+        Evaluates the validation loss function. Used during hyperparameter tuning.
 
         Args:
-            verbose (bool): Optional. Whether to print the val results. If True, the loss for each individual term is printed as:
-                density_term, gene-voxel similarity term, voxel-gene similarity term. Default is True.
+            verbose (bool): Optional. Whether to print the val results. If True, the loss for each individual term is printed as. Default is True.
 
         Returns:
-            Tuple of 5 Floats: total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy
+            Tuple of 5 Floats: expression_sim, gv_sim, sp_sparsity_weighted_gv_sim, entropy
         """
-
-        G = self.G_val
-        S = self.S_val
-
+        G = self.G_train
+        S = self.S_train
         M_probs = softmax(self.M, dim=1)
         G_pred = torch.matmul(M_probs.t(), S)
 
-        gv_scores = cosine_similarity(G_pred, G, dim=0)
-        vg_scores = cosine_similarity(G_pred, G, dim=1)
+        gv_sim = cosine_similarity(G_pred, G, dim=0).mean().tolist()
+        vg_sim = cosine_similarity(G_pred, G, dim=1).mean().tolist()
+        expression_sim = gv_sim + vg_sim
 
-        total_loss = (gv_scores.mean() + vg_scores.mean()).tolist()
-        gene_score = gv_scores.mean().tolist()
+        gene_sparsity = 1 - ((G != 0).sum(axis=0) / G.shape[0]).reshape((-1,))
+        sp_sparsity_weighted_gv_sim = ((cosine_similarity(G_pred, G, dim=0) * (1-gene_sparsity)) / (1-gene_sparsity).sum()).sum().tolist()
 
-        mask = G != 0
-        gene_sparsity = mask.sum(axis=0) / G.shape[0]
-        gene_sparsity = 1 - gene_sparsity.reshape((-1,))
-        sp_sparsity_weighted_score = ((gv_scores * (1-gene_sparsity)) / (1-gene_sparsity).sum()).sum().tolist()
-
-        prob_entropy = -((torch.log(M_probs) * M_probs).sum(axis=1) / np.log(M_probs.shape[1])).mean().tolist()
+        entropy = -((torch.log(M_probs) * M_probs).sum(axis=1) / np.log(M_probs.shape[1])).mean().tolist()
 
         if verbose:
-            term_numbers = [total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy]
-            term_names = ["total_loss", "gene_score", "sp_sparsity_weighted_score", "prob_entropy"]
+            term_numbers = [
+                gv_sim, 
+                sp_sparsity_weighted_gv_sim, 
+                entropy
+            ]
+            term_names = [
+                "Val gene-voxel score", 
+                "Val gene-voxel sparsity-weighted score", 
+                "Val map entropy"
+            ]
 
             d = dict(zip(term_names, term_numbers))
             clean_dict = {k: d[k] for k in d if not np.isnan(d[k])}
@@ -343,7 +353,7 @@ class Mapper:
 
             print(str(msg).replace("[", "").replace("]", "").replace("'", ""))
 
-        return total_loss, gene_score, sp_sparsity_weighted_score, prob_entropy
+        return expression_sim, gv_sim, sp_sparsity_weighted_gv_sim, entropy
 
     def train(self, num_epochs, learning_rate=0.1, print_each=100, val_each=None):
         """
@@ -358,9 +368,6 @@ class Mapper:
             output (ndarray): The optimized mapping matrix M (ndarray), with shape (number_cells, number_spots).
             training_history (dict): loss for each epoch
         """
-        if val_each is not None:
-            assert(self.S_val is not None and self.G_val is not None)
-
         if self.random_state:
             torch.manual_seed(seed=self.random_state)
         optimizer = torch.optim.Adam([self.M], lr=learning_rate)
@@ -369,7 +376,7 @@ class Mapper:
             logging.info(f"Printing scores every {print_each} epochs.")
 
         keys = ["total_loss", "main_loss", "vg_reg", "kl_reg", "entropy_reg"]
-        val_keys = ["val_total_loss", "val_gene_score", "val_sp_sparsity_weighted_score", "val_prob_entropy"]
+        val_keys = ["val_total_loss", "val_gene_sim", "val_sp_sparsity_weighted_sim", "val_entropy"]
         training_history = {key: [] for key in keys + val_keys}
 
         for t in range(num_epochs):
@@ -516,7 +523,7 @@ class MapperConstrained:
         vg_term = self.lambda_g2 * cosine_similarity(G_pred, self.G, dim=1).mean()
         expression_term = gv_term + vg_term
 
-        regularizer_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
+        entropy_term = self.lambda_r * (torch.log(M_probs) * M_probs).sum()
 
         _count_term = F_probs.sum() - self.target_count
         count_term = self.lambda_count * torch.abs(_count_term)
@@ -527,10 +534,10 @@ class MapperConstrained:
         main_loss = (gv_term / self.lambda_g1).tolist()
         kl_reg = (
             (density_term / self.lambda_d).tolist()
-            if density_term is not None
+            if self.target_density_enabled
             else np.nan
         )
-        entropy_reg = (regularizer_term / self.lambda_r).tolist()
+        entropy_reg = (entropy_term / self.lambda_r).tolist()
         main_loss = (gv_term / self.lambda_g1).tolist()
         vg_reg = (vg_term / self.lambda_g2).tolist()
         count_reg = (count_term / self.lambda_count).tolist()
@@ -565,8 +572,8 @@ class MapperConstrained:
 
             print(str(msg).replace("[", "").replace("]", "").replace("'", ""))
 
-        total_loss = -expression_term - regularizer_term + count_term + f_reg
-        if density_term is not None:
+        total_loss = -expression_term - entropy_term + count_term + f_reg
+        if self.target_density_enabled:
             total_loss = total_loss + density_term
 
         return (

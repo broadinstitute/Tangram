@@ -5,9 +5,6 @@ Installation:
     SpatialDE2 via https://github.com/PMBio/SpatialDE
 """
 
-import sys
-sys.path.insert(1, '../../SpatialDE')
-
 import SpatialDE
 
 def svg(adata_st):
