@@ -147,6 +147,8 @@ Tangram has been released in the following publication
 
 Biancalani* T., Scalia* G. et al. - _Deep learning and alignment of spatially-resolved whole transcriptomes of single cells in the mouse brain with Tangram_ [Nature Methods](https://www.nature.com/articles/s41592-021-01264-7) **18**, 1352–1362 (2021)
 
+Stahl* M., Straßer* L. et al. - _Refinement Strategies for Tangram for Reliable Single-Cell to Spatial Mapping_ [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1)
+
 If you have questions, please contact the authors of the method:
 - Tommaso Biancalani - <biancalt@gene.com>  
 - Gabriele Scalia - <gabriele.scalia@roche.com>
