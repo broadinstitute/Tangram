@@ -10,11 +10,9 @@ import logging
 
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
-
 from . import mapping_optimizer as mo
 from . import utils as ut
-
-# from torch.nn.functional import cosine_similarity
+from . import spatial_weights as sw
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -25,6 +23,7 @@ def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
     - Remove genes that all entries are zero
     - Find the intersection between adata_sc, adata_sp and given marker gene list, save the intersected markers in two adatas
     - Calculate density priors and save it with adata_sp
+    - Calculate spatial neighborhood parameters for neighborhood extensions
 
     Args:
         adata_sc (AnnData): single cell data
@@ -58,16 +57,17 @@ def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
     genes = list(set(genes) & set(adata_sc.var.index) & set(adata_sp.var.index))
     # logging.info(f"{len(genes)} shared marker genes.")
 
-    adata_sc.uns["training_genes"] = genes
-    adata_sp.uns["training_genes"] = genes
+    
+    genes_train = genes
+    adata_sc.uns["training_genes"] = genes_train
+    adata_sp.uns["training_genes"] = genes_train
     logging.info(
         "{} training genes are saved in `uns``training_genes` of both single cell and spatial Anndatas.".format(
-            len(genes)
+            len(genes_train)
         )
     )
-
-    # Find overlap genes between two AnnDatas
-    overlap_genes = list(set(adata_sc.var.index) & set(adata_sp.var.index))
+    # Find overlap genes between two AnnDatas and sort them alphabetically (important for index based selection of validation genes)
+    overlap_genes = np.sort(list(set(adata_sc.var.index) & set(adata_sp.var.index))).tolist()
     # logging.info(f"{len(overlap_genes)} shared genes.")
 
     adata_sc.uns["overlap_genes"] = overlap_genes
@@ -90,6 +90,14 @@ def pp_adatas(adata_sc, adata_sp, genes=None, gene_to_lowercase = True):
     logging.info(
         f"rna count based density prior is calculated and saved in `obs``rna_count_based_density` of the spatial Anndata."
     )
+
+    # Compute spatial neighbors needed for the neighborhood extension of Tangram
+    if "spatial" in adata_sp.obsm:
+        logging.info(
+            f"Spatial neighborhood matrices for the neighborhood extensions are calculated and saved in `obsp``spatial_connectivities` and `spatial_distances` of the spatial Anndata."
+        )
+        import squidpy as sq
+        sq.gr.spatial_neighbors(adata_sp, set_diag=False)
         
 
 def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=True):
@@ -130,7 +138,6 @@ def adata_to_cluster_expression(adata, cluster_label, scale=True, add_density=Tr
 
     return adata_ret
 
-
 def map_cells_to_space(
     adata_sc,
     adata_sp,
@@ -145,9 +152,16 @@ def map_cells_to_space(
     lambda_g1=1,
     lambda_g2=0,
     lambda_r=0,
+    lambda_l1=0,
+    lambda_l2=0,
     lambda_count=1,
     lambda_f_reg=1,
     target_count=None,
+    lambda_neighborhood_g1=0,
+    lambda_ct_islands=0,
+    lambda_getis_ord=0,
+    lambda_moran=0,
+    lambda_geary=0,
     random_state=None,
     verbose=True,
     density_prior='rna_count_based',
@@ -169,9 +183,16 @@ def map_cells_to_space(
         lambda_g1 (float): Optional. Hyperparameter for the gene-voxel similarity term of the optimizer. Default is 1.
         lambda_g2 (float): Optional. Hyperparameter for the voxel-gene similarity term of the optimizer. Default is 0.
         lambda_r (float): Optional. Strength of entropy regularizer. An higher entropy promotes probabilities of each cell peaked over a narrow portion of space. lambda_r = 0 corresponds to no entropy regularizer. Default is 0.
+        lambda_l1 (float): Optional. Strength of L1 regularizer. Default is 0.
+        lambda_l2 (float): Optional. Strength of L2 regularizer. Default is 0.
         lambda_count (float): Optional. Regularizer for the count term. Default is 1. Only valid when mode == 'constrained'
         lambda_f_reg (float): Optional. Regularizer for the filter, which promotes Boolean values (0s and 1s) in the filter. Only valid when mode == 'constrained'. Default is 1.
         target_count (int): Optional. The number of cells to be filtered. Default is None.
+        lambda_neighborhood_g1 (float): Optional. Strength of neighborhood weighted gene expression comparison. Default is 0.
+        lambda_ct_islands: Optional. Strength of ct islands enforcement. Default is 0.
+        lambda_getis_ord (float): Optional. Strength of Getis-Ord G* preservation. Default is 0.
+        lambda_geary (float): Optional. Strength of Geary's C preservation. Default is 0.
+        lambda_moran (float): Optional. Strength of Moran's I preservation. Default is 0.
         random_state (int): Optional. pass an int to reproduce training. Default is None.
         verbose (bool): Optional. If print training details. Default is True.
         density_prior (str, ndarray or None): Spatial density of spots, when is a string, value can be 'rna_count_based' or 'uniform', when is a ndarray, shape = (number_spots,). This array should satisfy the constraints sum() == 1. If None, the density term is ignored. Default value is 'rna_count_based'.
@@ -294,12 +315,36 @@ def map_cells_to_space(
         print_each = None
 
     if mode in ["cells", "clusters"]:
+        voxel_weights,neighborhood_filter,ct_encode,spatial_weights = None,None,None,None
+        if lambda_neighborhood_g1 > 0:
+            voxel_weights = sw.spatial_weights(adata_sp, standardized=True, self_inclusion=True)
+        if lambda_ct_islands > 0:
+            if not cluster_label in adata_sc.obs.keys():
+                raise ValueError("cluster_label must be specified for the cell type island extension.")
+            neighborhood_filter = sw.spatial_weights(adata_sp, standardized=False, self_inclusion=False)
+            ct_encode = ut.one_hot_encoding(adata_sc.obs[cluster_label]).values
+        if lambda_moran > 0 or lambda_geary > 0:
+            spatial_weights = sw.spatial_weights(adata_sp, standardized=True, self_inclusion=False)
+        if lambda_getis_ord > 0:
+            spatial_weights = sw.spatial_weights(adata_sp, standardized=False, self_inclusion=True)
+
         hyperparameters = {
-            "lambda_d": lambda_d,  # KL (ie density) term
-            "lambda_g1": lambda_g1,  # gene-voxel cos sim
-            "lambda_g2": lambda_g2,  # voxel-gene cos sim
-            "lambda_r": lambda_r,  # regularizer: penalize entropy
+            "lambda_d": lambda_d,
+            "lambda_g1": lambda_g1,
+            "lambda_g2": lambda_g2, 
+            "lambda_r": lambda_r, 
+            "lambda_l1": lambda_l1,
+            "lambda_l2": lambda_l2,
             "d_source": d_source,
+            "lambda_neighborhood_g1": lambda_neighborhood_g1,
+            "voxel_weights": voxel_weights,
+            "lambda_ct_islands": lambda_ct_islands,
+            "neighborhood_filter": neighborhood_filter,
+            "ct_encode": ct_encode,
+            "lambda_getis_ord": lambda_getis_ord,
+            "lambda_moran": lambda_moran,
+            "lambda_geary": lambda_geary,
+            "spatial_weights": spatial_weights,
         }
 
         logging.info(
