@@ -100,7 +100,9 @@ Prepare the input data as the same you would do for cell level Tangram mapping. 
                    lambda_getis_ord = 0.71)
 ```
 
-If one of the lambda_neighborhood_g1, lambda_ct_islands and lambda_getis_ord is non-zero, spatial information must be provided at ad_sc.obsm\['spatial']. If lambda_ct_islands is nonzero, cluster_label needs to be provided. Above example code is to map at 'subclass_label' level, and the 'subclass_label' is in ad_sc.obs. The detail information of these regularization parameters can be found at https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.
+If one of the lambda_neighborhood_g1, lambda_ct_islands and lambda_getis_ord is non-zero, spatial information must be provided at ad_sc.obsm\['spatial']. If lambda_ct_islands is nonzero, cluster_label needs to be provided. Above example code is to map at 'subclass_label' level, and the 'subclass_label' is in ad_sc.obs. 
+
+The detail information of these regularization parameters can be found at https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.
 
 To project gene expression to space, use `tg.project_genes` and be sure to set the `cluster_label` argument to the same cluster label in mapping.
 
