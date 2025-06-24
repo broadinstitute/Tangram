@@ -81,6 +81,38 @@ To project gene expression to space, use `tg.project_genes` and be sure to set t
 
 ***
 
+### How to run Tangram with refinements to improve consistency
+
+To improve the Tangram mapping consistency, more refinement can be introduced to Tangram mapping. This modification was introduced by [Markus List.](https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.)
+
+Prepare the input data as the same you would do for cell level Tangram mapping. Then map with the same function but wth more regularization parameters:
+
+```
+    ad_map = tg.map_cells_to_space(
+                   ad_sc, 
+                   ad_sp,         
+                   mode='cells',
+                   cluster_label='subclass_label',
+                   lambda_r = 2.95e-9, 
+                   lambda_l2 = 1.00e-18, 
+                   lambda_neighborhood_g1 = 0.96, 
+                   lambda_ct_islands = 0.17, 
+                   lambda_getis_ord = 0.71)
+```
+
+If one of the lambda_neighborhood_g1, lambda_ct_islands and lambda_getis_ord is non-zero, spatial information must be provided at ad_sc.obsm\['spatial']. If lambda_ct_islands is nonzero, cluster_label needs to be provided. Above example code is to map at 'subclass_label' level, and the 'subclass_label' is in ad_sc.obs. The detail information of these regularization parameters can be found at https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.
+
+To project gene expression to space, use `tg.project_genes` and be sure to set the `cluster_label` argument to the same cluster label in mapping.
+
+```
+    ad_ge = tg.project_genes(
+                  ad_map, 
+                  ad_sc,
+                  cluster_label='subclass_label')
+```
+
+***
+
 ## How Tangram works under the hood
 Tangram instantiates a `Mapper` object passing the following arguments:
 - _S_: single cell matrix with shape cell-by-gene. Note that genes is the number of training genes.
