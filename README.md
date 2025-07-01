@@ -83,7 +83,7 @@ To project gene expression to space, use `tg.project_genes` and be sure to set t
 
 ### How to run Tangram with refinements to improve consistency
 
-To improve the Tangram mapping consistency, more refinement can be introduced to Tangram mapping. This modification was introduced by [Markus List.](https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.)
+To improve the Tangram mapping consistency, more refinement can be introduced to Tangram mapping. This modification was introduced by the research group Data Science in Systems Biology at the Technical University of Munich (lead: [Markus List.](https://www.biorxiv.org/content/10.1101/2025.01.27.634996v1.)).
 
 Prepare the input data as the same you would do for cell level Tangram mapping. Then map with the same function but wth more regularization parameters:
 
