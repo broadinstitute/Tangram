@@ -676,7 +676,7 @@ def plot_auc(df_all_genes, test_genes=None):
     plt.figure(figsize=(6, 5))
 
     plt.plot(pol_xs, pol_ys, c='r')
-    sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
+    sns.scatterplot(x=xs, y=ys, alpha=0.5, edgecolors='face')
         
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
