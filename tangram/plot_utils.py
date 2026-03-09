@@ -1,22 +1,21 @@
 """
 This module includes plotting utility functions.
 """
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
-import seaborn as sns
-from scipy.stats import entropy
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import scanpy as sc
+import seaborn as sns
+from matplotlib.gridspec import GridSpec
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.csr import csr_matrix
+from scipy.stats import entropy
 
-from . import utils as ut
 from . import mapping_utils as mu
-
-import pandas as pd
-import logging
-import matplotlib as mpl
-from matplotlib.gridspec import GridSpec
+from . import utils as ut
 
 
 def q_value(data, perc):
@@ -676,7 +675,7 @@ def plot_auc(df_all_genes, test_genes=None):
     plt.figure(figsize=(6, 5))
 
     plt.plot(pol_xs, pol_ys, c='r')
-    sns.scatterplot(xs, ys, alpha=0.5, edgecolors='face')
+    sns.scatterplot(x=xs, y=ys, alpha=0.5)
         
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
@@ -689,9 +688,9 @@ def plot_auc(df_all_genes, test_genes=None):
     textstr = 'auc_score={}'.format(np.round(metric_dict['auc_score'], 3))
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.3)
     # place a text box in upper left in axes coords
-    plt.text(0.03, 0.1, textstr, fontsize=11, verticalalignment='top', bbox=props);
+    plt.text(0.03, 0.1, textstr, fontsize=11, verticalalignment='top', bbox=props)
 
-    
+
 # Colors used in the manuscript for deterministic assignment.
 mapping_colors = {
     "L6 CT": (0.19215686274509805, 0.5098039215686274, 0.7411764705882353),

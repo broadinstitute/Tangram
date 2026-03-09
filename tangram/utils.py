@@ -1,22 +1,21 @@
 """
     Utility functions to pre- and post-process data for Tangram.
 """
+import gzip
+import logging
+import pickle
+import warnings
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
-from collections import defaultdict
-import gzip
-import pickle
 import scanpy as sc
-from tqdm import tqdm
-from sklearn.model_selection import LeaveOneOut
+from sklearn.metrics import auc
 from sklearn.model_selection import KFold
+from sklearn.model_selection import LeaveOneOut
+from tqdm import tqdm
 
 from . import mapping_utils as mu
-
-import logging
-import warnings
-
-from sklearn.metrics import auc
 
 warnings.filterwarnings("ignore")
 logger_ann = logging.getLogger("anndata")
@@ -140,14 +139,14 @@ def project_cell_annotations(
         Update spatial Anndata by creating `obsm` `tangram_ct_pred` field with a dataframe with spatial prediction for each annotation (number_spots, number_annotations) 
     """
 
-    df = one_hot_encoding(adata_map.obs[annotation])
     if "F_out" in adata_map.obs.keys():
-        df_ct_prob = adata_map[adata_map.obs["F_out"] > threshold]
+        adata_map = adata_map[adata_map.obs["F_out"] > threshold]
 
+    df = one_hot_encoding(adata_map.obs[annotation])
     df_ct_prob = adata_map.X.T @ df
     df_ct_prob.index = adata_map.var.index
 
-    adata_sp.obsm["tangram_ct_pred"] = df_ct_prob
+    adata_sp.obsm["tangram_ct_pred"] = df_ct_prob.values
     logging.info(
         f"spatial prediction dataframe is saved in `obsm` `tangram_ct_pred` of the spatial AnnData."
     )
@@ -193,7 +192,7 @@ def create_segment_cell_df(adata_sp):
     )
 
     adata_sp.uns["tangram_cell_segmentation"] = segmentation_df
-    adata_sp.obsm["tangram_spot_centroids"] = centroids["centroids_idx"]
+    adata_sp.obsm["tangram_spot_centroids"] = centroids["centroids_idx"].values
     logging.info(
         f"cell segmentation dataframe is saved in `uns` `tangram_cell_segmentation` of the spatial AnnData."
     )
@@ -340,8 +339,8 @@ def project_genes(adata_map, adata_sc, cluster_label=None, scale=True):
     Transfer gene expression from the single cell onto space.
 
     Args:
-        adata_map (AnnData): single cell data
-        adata_sp (AnnData): gene spatial data
+        adata_map (AnnData): cell-by-spot AnnData returned by `train` function.
+        adata_sc (AnnData): single cell data.
         cluster_label (AnnData): Optional. Should be consistent with the 'cluster_label' argument passed to `map_cells_to_space` function.
         scale (bool): Optional. Should be consistent with the 'scale' argument passed to `map_cells_to_space` function.
 
@@ -619,7 +618,7 @@ def cross_val(
 
         test_df = df_g[df_g.index.isin(test_genes)]
         test_score = df_g.loc[test_genes]["score"].mean()
-        train_score = np.float(list(adata_map.uns["training_history"]["main_loss"])[-1])
+        train_score = float(list(adata_map.uns["training_history"]["main_loss"])[-1])
 
         # output avg score
         test_genes_list.append(test_genes)

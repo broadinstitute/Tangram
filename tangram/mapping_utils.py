@@ -283,13 +283,13 @@ def map_cells_to_space(
     d_str = density_prior
     if type(density_prior) is np.ndarray:
         d_str = "customized"
+    else:
+        if density_prior == "rna_count_based":
+            density_prior = adata_sp.obs["rna_count_based_density"]
 
-    if density_prior == "rna_count_based":
-        density_prior = adata_sp.obs["rna_count_based_density"]
-
-    # define density_prior if 'uniform' is passed to the density_prior argument:
-    elif density_prior == "uniform":
-        density_prior = adata_sp.obs["uniform_density"]
+        # define density_prior if 'uniform' is passed to the density_prior argument:
+        elif density_prior == "uniform":
+            density_prior = adata_sp.obs["uniform_density"]
 
     if mode == "cells":
         d = density_prior
